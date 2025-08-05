@@ -5,8 +5,6 @@ A plugin for OpenZeppelin Relayer that simplifies submitting Stellar Soroban tra
 ## Repository Structure
 
 ```
-core/                              # Core library for building plugins
-└── @openzeppelin/relayer-plugins-core
 src/                               # Stellar Soroban plugin source code
 ```
 
@@ -43,7 +41,8 @@ pnpm format
 
 ## Creating a Plugin
 
-Plugins are TypeScript packages that use the `@openzeppelin/relayer-plugins-core` library. See the [core package README](core/README.md) for detailed documentation.
+To create a plugin for OpenZeppelin Relayer, write a TypeScript function that follows the plugin structure and declare it in your configuration file. For detailed information about writing plugins, see the [OpenZeppelin Relayer Plugins documentation](https://docs.openzeppelin.com/relayer/1.0.x/plugins).
+
 
 ## Overview
 

@@ -1,13 +1,14 @@
-import { runPlugin, PluginAPI } from '@openzeppelin/relayer-plugins-core';
-import { SorobanRpc } from '@stellar/stellar-sdk';
-import { SequencePool } from './pool';
-import { loadConfig, getNetworkPassphrase } from './config';
 import { LaunchtubeResponse, RpcClient, SequenceAccount } from './types';
-import { validateAndParseRequest } from './validation';
-import { extractFunctionAndAuth } from './extraction';
-import { checkAuthAndSimDecision } from './authCheck';
+import { getNetworkPassphrase, loadConfig } from './config';
 import { simulateAndBuild, validateExistingTransaction } from './simulation';
+
+import { PluginAPI } from '@openzeppelin/relayer-sdk/dist/models/plugin-api';
+import { SequencePool } from './pool';
+import { SorobanRpc } from '@stellar/stellar-sdk';
 import { calculateFee } from './fee';
+import { checkAuthAndSimDecision } from './authCheck';
+import { extractFunctionAndAuth } from './extraction';
+import { validateAndParseRequest } from './validation';
 
 // Initialize dependencies
 const config = loadConfig();
@@ -101,7 +102,7 @@ async function launchtube(api: PluginAPI, params: any): Promise<LaunchtubeRespon
 }
 
 // Error-catching wrapper
-async function launchtubeWrapper(api: PluginAPI, params: any): Promise<any> {
+export async function handler(api: PluginAPI, params: any): Promise<any> {
   try {
     return await launchtube(api, params);
   } catch (error: any) {
@@ -113,5 +114,3 @@ async function launchtubeWrapper(api: PluginAPI, params: any): Promise<any> {
     };
   }
 }
-
-runPlugin(launchtubeWrapper);
