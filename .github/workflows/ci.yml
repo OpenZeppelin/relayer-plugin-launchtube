@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - .github/**
+      - .gitignore
+  pull_request:
+    types: [assigned, opened, synchronize, reopened, labeled]
+    paths-ignore:
+      - '**.md'
+      - .github/**
+      - .gitignore
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  build-test:
+    name: Run build & test
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+      with:
+        egress-policy: audit
+
+    - name: Checkout
+      uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.5.4
+
+    - name: Prepare pre-requisites
+      uses: ./.github/actions/prepare
+
+    - name: Style
+      run: |
+        pnpm style
+
+    - name: Build
+      run: |
+        pnpm build
+
+    - name: Test
+      run: |
+        pnpm test

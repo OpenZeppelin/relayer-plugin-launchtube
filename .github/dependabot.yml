@@ -1,0 +1,39 @@
+---
+version: 2
+updates:
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      # Prefix all commit messages with "chore(deps): "
+      prefix: 'chore(deps): '
+
+  # Maintain dependencies for npm
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    ignore:
+      - dependency-name: '*'
+        update-types: [version-update:semver-major]
+    commit-message:
+      # Prefix all commit messages
+      prefix: 'chore: '
+    # Allow up to 5 open pull requests
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /packages/core
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'chore: '
+
+  - package-ecosystem: npm
+    directory: /packages/plugins/launchtube
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'chore: '
