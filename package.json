@@ -1,0 +1,42 @@
+{
+  "name": "@openzeppelin/relayer-plugin-launchtube",
+  "version": "0.1.0",
+  "description": "OpenZeppelin Relayer Plugin for Launchtube",
+  "main": "index.js",
+  "scripts": {
+    "dev": "pnpm -r run dev",
+    "build": "pnpm -r run build && tsc",
+    "build:core": "pnpm --filter @openzeppelin/relayer-plugins-core run build",
+    "build:main": "tsc",
+    "lint": "eslint . --fix",
+    "lint:check": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm -r run test",
+    "clean": "rm -rf dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OpenZeppelin/relayer-plugin-launchtube.git"
+  },
+  "author": "OpenZeppelin <contact@openzeppelin.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/OpenZeppelin/relayer-plugin-launchtube/issues"
+  },
+  "homepage": "https://github.com/OpenZeppelin/relayer-plugin-launchtube#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@types/node": "^20.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.3",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.38.0"
+  },
+  "dependencies": {
+    "@openzeppelin/relayer-plugins-core": "workspace:*",
+    "@stellar/stellar-sdk": "^11.2.0"
+  }
+}
