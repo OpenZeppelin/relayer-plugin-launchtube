@@ -18,7 +18,8 @@
     "test": "echo 'No tests configured yet'",
     "clean": "rm -rf dist",
     "install-pnpm": "npm install -g pnpm",
-    "install-deps": "pnpm install --frozen-lockfile --ignore-scripts --prefer-offline"
+    "install-deps": "pnpm install --frozen-lockfile --ignore-scripts --prefer-offline",
+    "ci:version": "pnpm changeset version"
   },
   "repository": {
     "type": "git",
