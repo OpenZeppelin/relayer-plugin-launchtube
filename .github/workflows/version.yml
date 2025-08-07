@@ -28,14 +28,17 @@ jobs:
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.5.4
         with:
           token: ${{ steps.gh-app-token.outputs.token }}
+          fetch-depth: 0
 
       - name: Prepare pre-requisites
         uses: ./.github/actions/prepare
+        with:
+          token: ${{ steps.gh-app-token.outputs.token }}
 
       - name: Create Release Pull Request
-        uses: changesets/action@3de3850952bec538fde60aac71731376e57b9b57 # v1.4.8
+        uses: changesets/action@e0145edc7d9d8679003495b11f87bd8ef63c0cba # v1.5.3
         with:
-          setupGitUser: false
+          commitMode: "github-api"
           version: pnpm ci:version
           title: "ci: update the version packages"
         env:
