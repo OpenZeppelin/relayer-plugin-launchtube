@@ -39,9 +39,9 @@ jobs:
       - name: Create Release Pull Request
         uses: changesets/action@3de3850952bec538fde60aac71731376e57b9b57 # v1.4.8
         with:
-          setupGitUser: true
           version: pnpm ci:version
           title: "ci: update the version packages"
+          commitMode: "github-api"
         env:
           GITHUB_TOKEN: ${{ steps.gh-app-token.outputs.token }}
 
