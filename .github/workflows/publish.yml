@@ -52,6 +52,8 @@ jobs:
 
       - name: Prepare pre-requisites
         uses: ./.github/actions/prepare
+        with:
+          token: ${{ steps.gh-app-token.outputs.token }}
 
       - name: Create temp dir
         id: temp-dir
