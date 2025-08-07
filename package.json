@@ -10,7 +10,7 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "package.json"
   ],
   "scripts": {
     "dev": "tsc --watch",
