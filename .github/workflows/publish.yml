@@ -96,7 +96,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.gh-app-token.outputs.token }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
+          # NPM_CONFIG_PROVENANCE: true # commented until we go public
 
       - name: Generate SBOM
         uses: anchore/sbom-action@7b36ad622f042cab6f59a75c2ac24ccb256e9b45
