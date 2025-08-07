@@ -1,6 +1,6 @@
 import { Transaction, TransactionBuilder, Operation, Account, SorobanRpc, xdr } from '@stellar/stellar-sdk';
 import { ExtractedData, SequenceAccount, RpcClient, SimulationError, ValidationError } from './types';
-import { Relayer } from '@openzeppelin/relayer-plugins-core';
+import { Relayer, SignTransactionResponseStellar } from '@openzeppelin/relayer-sdk';
 
 export async function simulateAndBuild(
   extracted: ExtractedData,
@@ -68,9 +68,9 @@ export async function simulateAndBuild(
   }).build();
 
   // Sign with sequence account
-  const signResult = await sequenceRelayer.signTransaction({
-    unsignedXdr: finalTransaction.toXDR(),
-  });
+  const signResult = (await sequenceRelayer.signTransaction({
+    unsigned_xdr: finalTransaction.toXDR(),
+  })) as SignTransactionResponseStellar;
 
   return new Transaction(signResult.signedXdr, networkPassphrase);
 }

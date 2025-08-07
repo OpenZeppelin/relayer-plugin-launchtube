@@ -14,11 +14,33 @@ export interface LaunchtubeConfig {
  * Load configuration from config.json
  */
 export function loadConfig(): LaunchtubeConfig {
-  // Try config file first
-  const configPath = path.join(__dirname, '..', 'config.json');
+  // Search for config.json in multiple locations
+  const possiblePaths = [
+    // 1. Check plugins/launchtube directory (when used in relayer)
+    path.join(process.cwd(), 'plugins', 'launchtube', 'config.json'),
+    // 2. Check plugins directory 
+    path.join(process.cwd(), 'plugins', 'config.json'),
+    // 3. Current working directory
+    path.join(process.cwd(), 'config.json'),
+    // 4. Plugin's own directory (for local development)
+    path.join(__dirname, '..', 'config.json'),
+  ];
 
-  if (!fs.existsSync(configPath)) {
-    throw new Error(`Configuration file not found: ${configPath}`);
+  let configPath: string | undefined;
+  for (const possiblePath of possiblePaths) {
+    if (fs.existsSync(possiblePath)) {
+      configPath = possiblePath;
+      console.log(`Loading launchtube config from: ${configPath}`);
+      break;
+    }
+  }
+
+  if (!configPath) {
+    throw new Error(
+      `Configuration file not found. Searched in:\n` +
+      possiblePaths.map(p => `  - ${p}`).join('\n') +
+      `\n\nPlease create a config.json file in one of these locations.`
+    );
   }
 
   try {

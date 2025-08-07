@@ -2,33 +2,98 @@
 
 A plugin for OpenZeppelin Relayer that simplifies submitting Stellar Soroban transactions by handling fees, sequence numbers, and retries.
 
-## Repository Structure
-
-```
-src/                               # Stellar Soroban plugin source code
-```
-
 ## Prerequisites
 
 - Node.js >= 18
 - pnpm >= 10
+- OpenZeppelin Relayer
 
-## Development
+## Installation & Setup
 
-### Installation
+LaunchTube can be added to any OpenZeppelin Relayer in two ways:
+
+### 1. Install from npm (recommended)
 
 ```bash
-# Install dependencies
-pnpm install
+# From the root of your Relayer repository
+cd plugins
+pnpm add @openzeppelin/relayer-plugin-launchtube
+```
 
-# Build all packages
+### 2. Use a local build (for development / debugging)
+
+```bash
+# Clone and build the plugin
+git clone https://github.com/openzeppelin/relayer-plugin-launchtube.git
+cd relayer-plugin-launchtube
+pnpm install
 pnpm build
 ```
 
-### Scripts
+Now reference the local build from your Relayer’s `plugins/package.json`:
+
+```jsonc
+{
+  "dependencies": {
+    "@openzeppelin/relayer-plugin-launchtube": "file:../../relayer-plugin-launchtube",
+  },
+}
+```
+
+Install dependencies:
 
 ```bash
-# Build all packages
+pnpm install
+```
+
+---
+
+### Create the plugin wrapper
+
+Inside the Relayer create a directory for the plugin and expose its handler:
+
+```bash
+mkdir -p plugins/launchtube
+```
+
+`plugins/launchtube/index.ts`
+
+```ts
+export { handler } from '@openzeppelin/relayer-plugin-launchtube';
+```
+
+### Provide a configuration file
+
+Copy the bundled example and tweak it to your needs:
+
+```bash
+cp node_modules/@openzeppelin/relayer-plugin-launchtube/config.example.json plugins/launchtube/config.json
+```
+
+Edit `plugins/launchtube/config.json` (see Configuration section).
+
+Your Relayer should now contain:
+
+```
+relayer/
+└─ plugins/
+   ├─ package.json              # lists the dependency
+   └─ launchtube/
+      ├─ index.ts
+      └─ config.json
+```
+
+LaunchTube is now ready to serve Soroban transactions 🚀
+
+## Development
+
+### Building from Source
+
+```Shell
+# Install dependencies
+pnpm install
+
+# Build the plugin
 pnpm build
 
 # Run tests
@@ -39,14 +104,10 @@ pnpm lint
 pnpm format
 ```
 
-## Creating a Plugin
-
-To create a plugin for OpenZeppelin Relayer, write a TypeScript function that follows the plugin structure and declare it in your configuration file. For detailed information about writing plugins, see the [OpenZeppelin Relayer Plugins documentation](https://docs.openzeppelin.com/relayer/1.0.x/plugins).
-
-
 ## Overview
 
 Launchtube accepts Soroban operations and handles all the complexity of getting them on-chain:
+
 - Automatic fee bumping using a dedicated fund account
 - Sequence number management with a pool of sequence accounts
 - Transaction simulation and rebuilding
@@ -56,7 +117,7 @@ Launchtube accepts Soroban operations and handles all the complexity of getting 
 
 Create `config.json` in the plugin directory:
 
-```json
+```JSON
 {
   "fundRelayerId": "launchtube-fund",
   "sequenceRelayerIds": ["launchtube-seq-001", "launchtube-seq-002"],
@@ -67,6 +128,7 @@ Create `config.json` in the plugin directory:
 ```
 
 **Configuration Options:**
+
 - `fundRelayerId`: Relayer ID for the account that pays fees
 - `sequenceRelayerIds`: Array of relayer IDs for sequence accounts
 - `maxFee`: Maximum fee in stroops (1 XLM = 10,000,000 stroops)
@@ -79,7 +141,7 @@ Create `config.json` in the plugin directory:
 
 Submit a complete, signed transaction:
 
-```bash
+```Shell
 curl -X POST http://localhost:8080/api/v1/plugins/launchtube/call \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
@@ -95,7 +157,7 @@ curl -X POST http://localhost:8080/api/v1/plugins/launchtube/call \
 
 Submit just the Soroban function and auth entries:
 
-```bash
+```Shell
 curl -X POST http://localhost:8080/api/v1/plugins/launchtube/call \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
@@ -119,7 +181,7 @@ curl -X POST http://localhost:8080/api/v1/plugins/launchtube/call \
 
 ### Response
 
-```json
+```JSON
 {
   "transactionId": "tx_123456",
   "status": "submitted",
@@ -135,14 +197,6 @@ curl -X POST http://localhost:8080/api/v1/plugins/launchtube/call \
 4. **Simulation** (if enabled): Simulates transaction and rebuilds with proper resources
 5. **Fee Bumping**: Fund account wraps transaction with fee bump
 6. **Submission**: Sends to Stellar network
-
-## Error Handling
-
-Common errors:
-- `No sequence accounts available`: All sequence accounts are in use
-- `sorobanCredentialsSourceAccount is invalid`: Cannot use sequence account in auth
-- `Transaction fee must be equal to the resource fee`: Fee doesn't match simulation
-- `Simulation failed`: Transaction would fail on-chain
 
 ## License
 

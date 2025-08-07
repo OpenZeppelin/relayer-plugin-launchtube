@@ -1,14 +1,13 @@
-import { LaunchtubeResponse, RpcClient, SequenceAccount } from './types';
-import { getNetworkPassphrase, loadConfig } from './config';
-import { simulateAndBuild, validateExistingTransaction } from './simulation';
-
-import { PluginAPI } from '@openzeppelin/relayer-sdk/dist/models/plugin-api';
-import { SequencePool } from './pool';
+import { PluginAPI } from '@openzeppelin/relayer-sdk';
 import { SorobanRpc } from '@stellar/stellar-sdk';
-import { calculateFee } from './fee';
-import { checkAuthAndSimDecision } from './authCheck';
-import { extractFunctionAndAuth } from './extraction';
+import { SequencePool } from './pool';
+import { loadConfig, getNetworkPassphrase } from './config';
+import { LaunchtubeResponse, RpcClient, SequenceAccount } from './types';
 import { validateAndParseRequest } from './validation';
+import { extractFunctionAndAuth } from './extraction';
+import { checkAuthAndSimDecision } from './authCheck';
+import { simulateAndBuild, validateExistingTransaction } from './simulation';
+import { calculateFee } from './fee';
 
 // Initialize dependencies
 const config = loadConfig();
@@ -39,7 +38,7 @@ async function launchtube(api: PluginAPI, params: any): Promise<LaunchtubeRespon
     // Create complete sequence account with all required info
     sequenceAccount = {
       relayerId: poolAccount.relayerId,
-      address: sequenceInfo.address,
+      address: sequenceInfo.address!,
       sequence: sequenceStatus.sequence_number,
     };
 
@@ -104,13 +103,15 @@ async function launchtube(api: PluginAPI, params: any): Promise<LaunchtubeRespon
 // Error-catching wrapper
 export async function handler(api: PluginAPI, params: any): Promise<any> {
   try {
-    return await launchtube(api, params);
+    const result = await launchtube(api, params);
+    return result;
   } catch (error: any) {
     console.error(`Plugin error: ${error.message || error}`);
-    return {
+    const errorResult = {
       error: error.message || String(error),
       transactionId: null,
       status: 'failed',
     };
+    return errorResult;
   }
 }

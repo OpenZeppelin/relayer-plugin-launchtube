@@ -2,7 +2,8 @@
   "name": "@openzeppelin/relayer-plugin-launchtube",
   "version": "0.1.0",
   "description": "OpenZeppelin Relayer Plugin for Launchtube",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "dev": "pnpm -r run dev",
     "build": "pnpm -r run build && tsc",
@@ -36,7 +37,7 @@
     "typescript-eslint": "^8.38.0"
   },
   "dependencies": {
-    "@openzeppelin/relayer-sdk": "^1.2.0",
+    "@openzeppelin/relayer-sdk": "^1.4.0",
     "@stellar/stellar-sdk": "^11.2.0"
   }
 }
