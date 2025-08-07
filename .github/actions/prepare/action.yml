@@ -3,6 +3,10 @@ name: Pre-requisites
 description: |
   Setup Pre-requisites
 
+inputs:
+  token:
+    required: true
+
 runs:
   using: composite
   steps:
