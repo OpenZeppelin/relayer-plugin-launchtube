@@ -1,0 +1,17 @@
+# Build outputs
+dist/
+build/
+coverage/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+*.log
+*.tsbuildinfo
+pnpm-lock.yaml
