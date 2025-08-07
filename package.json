@@ -18,7 +18,8 @@
     "test": "echo 'No tests configured yet'",
     "clean": "rm -rf dist",
     "install-pnpm": "npm install -g pnpm",
-    "install-deps": "pnpm install --frozen-lockfile --ignore-scripts --prefer-offline"
+    "install-deps": "pnpm install --frozen-lockfile --ignore-scripts --prefer-offline",
+    "ci:version": "pnpm changeset version"
   },
   "repository": {
     "type": "git",
@@ -56,7 +57,7 @@
     "nx": "^20.8.0",
     "prettier": "^3.0.0",
     "ts-jest": "^29.1.2",
-    "typescript": "5.8.3"
+    "typescript": "5.8.2"
   },
   "engines": {
     "node": ">=22.18.0",
