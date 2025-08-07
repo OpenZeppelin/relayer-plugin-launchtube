@@ -85,7 +85,6 @@ jobs:
           tar -xzvf "${{ needs.provenance.outputs.package-name }}" -C $GITHUB_WORKSPACE --strip-components=1
           cd "$GITHUB_WORKSPACE"
           pnpm run install-deps
-          pnpm nx-test-skip-cache
 
       # - name: Publish to NPM
       #   id: changesets
