@@ -1,3 +1,10 @@
+/**
+ * config.ts
+ * 
+ * Configuration loader for the Launchtube plugin.
+ * Manages plugin settings including relayer IDs, network configuration, and RPC endpoints.
+ */
+
 import fs from 'fs';
 import path from 'path';
 import { Networks } from '@stellar/stellar-sdk';

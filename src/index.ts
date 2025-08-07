@@ -1,3 +1,10 @@
+/**
+ * index.ts
+ * 
+ * Main entry point for the Launchtube plugin.
+ * Orchestrates the transaction processing pipeline for Stellar/Soroban operations.
+ */
+
 import { PluginAPI } from '@openzeppelin/relayer-sdk';
 import { SorobanRpc } from '@stellar/stellar-sdk';
 import { SequencePool } from './pool';

@@ -1,3 +1,10 @@
+/**
+ * fee.ts
+ * 
+ * Fee calculation utilities for Stellar transactions.
+ * Handles both Soroban and regular transaction fee calculations.
+ */
+
 import { Transaction, xdr } from '@stellar/stellar-sdk';
 
 export function calculateFee(transaction: Transaction): bigint {

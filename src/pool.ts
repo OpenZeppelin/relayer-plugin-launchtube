@@ -1,3 +1,10 @@
+/**
+ * pool.ts
+ * 
+ * Manages a pool of sequence accounts with file-based locking.
+ * Provides atomic acquisition and release of accounts for concurrent transaction processing.
+ */
+
 import * as fs from 'fs';
 import * as path from 'path';
 

@@ -1,3 +1,10 @@
+/**
+ * validation.ts
+ * 
+ * Request validation and parsing for the Launchtube plugin.
+ * Ensures proper request structure and parameter compatibility.
+ */
+
 import { LaunchtubeRequest, ValidationError } from './types';
 
 export function validateAndParseRequest(params: any): LaunchtubeRequest {

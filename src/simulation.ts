@@ -1,3 +1,10 @@
+/**
+ * simulation.ts
+ * 
+ * Handles Soroban transaction simulation and building.
+ * Manages transaction validation and resource fee calculations.
+ */
+
 import { Transaction, TransactionBuilder, Operation, Account, SorobanRpc, xdr } from '@stellar/stellar-sdk';
 import { ExtractedData, SequenceAccount, RpcClient, SimulationError, ValidationError } from './types';
 import { Relayer, SignTransactionResponseStellar } from '@openzeppelin/relayer-sdk';

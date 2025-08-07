@@ -1,3 +1,10 @@
+/**
+ * extraction.ts
+ * 
+ * Extracts host function and authorization data from Stellar transactions.
+ * Handles both XDR transactions and direct function/auth parameters.
+ */
+
 import { Transaction, Operation, xdr } from '@stellar/stellar-sdk';
 import { LaunchtubeRequest, ExtractedData, ValidationError } from './types';
 

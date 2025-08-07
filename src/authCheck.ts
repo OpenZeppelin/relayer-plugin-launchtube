@@ -1,3 +1,10 @@
+/**
+ * authCheck.ts
+ * 
+ * Validates Soroban authorization entries and determines simulation requirements.
+ * Checks for auth violations and handles source account authentication scenarios.
+ */
+
 import { xdr, Address } from '@stellar/stellar-sdk';
 import { LaunchtubeRequest, ExtractedData, AuthCheckResult, SequenceAccount, AuthError } from './types';
 
