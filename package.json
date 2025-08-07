@@ -4,6 +4,14 @@
   "description": "OpenZeppelin Relayer Plugin for Launchtube",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
   "scripts": {
     "dev": "tsc --watch",
     "build": "tsc",
@@ -19,7 +27,8 @@
     "clean": "rm -rf dist",
     "install-pnpm": "npm install -g pnpm",
     "install-deps": "pnpm install --frozen-lockfile --ignore-scripts --prefer-offline",
-    "ci:version": "pnpm changeset version"
+    "ci:version": "pnpm changeset version",
+    "release": "node ./scripts/release.js"
   },
   "repository": {
     "type": "git",
