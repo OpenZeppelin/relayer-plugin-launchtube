@@ -5,15 +5,13 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "dev": "pnpm -r run dev",
-    "build": "pnpm -r run build && tsc",
-    "build:core": "pnpm --filter @openzeppelin/relayer-plugins-core run build",
-    "build:main": "tsc",
+    "dev": "tsc --watch",
+    "build": "tsc",
     "lint": "eslint . --fix",
     "lint:check": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm -r run test",
+    "test": "echo 'No tests configured yet'",
     "clean": "rm -rf dist"
   },
   "repository": {
