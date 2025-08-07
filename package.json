@@ -4,6 +4,9 @@
   "description": "OpenZeppelin Relayer Plugin for Launchtube",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "tsc --watch",
     "build": "tsc",
