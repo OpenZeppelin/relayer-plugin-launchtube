@@ -1,6 +1,6 @@
 /**
  * authCheck.ts
- * 
+ *
  * Validates Soroban authorization entries and determines simulation requirements.
  * Checks for auth violations and handles source account authentication scenarios.
  */

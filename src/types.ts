@@ -35,7 +35,6 @@ export type SequenceAccount = {
 // Final response
 export type LaunchtubeResponse = {
   transactionId: string | null;
-  status: string;
   hash: string | null;
   error?: string;
 };
