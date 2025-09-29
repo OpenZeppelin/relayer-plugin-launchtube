@@ -18,8 +18,30 @@ import { calculateFee } from './fee';
 
 // Initialize dependencies
 const config = loadConfig();
-const pool = new SequencePool(config.sequenceRelayerIds);
+
+const SHARDS   = Number(process.env.SHARDS ?? '1');
+const SHARD_ID = Number(process.env.SHARD_ID ?? '0');
+
+function shard<T>(arr: T[], shards: number, shardId: number): T[] {
+  if (shards <= 1) return arr.slice();
+  const out: T[] = [];
+  const sorted = arr.slice().sort();
+  for (let i = 0; i < sorted.length; i++) {
+    if (i % shards === shardId) out.push(sorted[i]);
+  }
+  return out;
+}
+
+const shardedSequenceIds = shard(config.sequenceRelayerIds, SHARDS, SHARD_ID);
+if (shardedSequenceIds.length === 0) {
+  throw new Error(`Shard ${SHARD_ID}/${SHARDS} has 0 sequence accounts — check SHARDS and the global list length.`);
+}
+console.log(`Launchtube shard init: shardId=${SHARD_ID} shards=${SHARDS} total=${config.sequenceRelayerIds.length} assigned=${shardedSequenceIds.length}`);
+
+const pool = new SequencePool(shardedSequenceIds);
+
 const rpc: RpcClient = new SorobanRpc.Server(config.rpcUrl);
+
 
 async function launchtube(api: PluginAPI, params: any): Promise<LaunchtubeResponse> {
   let sequenceAccount: SequenceAccount | undefined;
