@@ -1,11 +1,12 @@
 /**
  * fee.ts
- * 
+ *
  * Fee calculation utilities for Stellar transactions.
  * Handles both Soroban and regular transaction fee calculations.
  */
 
 import { Transaction, xdr } from '@stellar/stellar-sdk';
+import { FEE } from './constants';
 
 export function calculateFee(transaction: Transaction): bigint {
   // Extract resource fee from transaction if it has Soroban data
@@ -19,15 +20,15 @@ export function calculateFee(transaction: Transaction): bigint {
     }
   }
 
-  // Random base fee between 205 and 605
-  const baseFee = getRandomNumber(205, 605);
+  // Random base fee between min and max
+  const baseFee = getRandomNumber(FEE.MIN_BASE_FEE, FEE.MAX_BASE_FEE);
 
   // Calculate total fee
   if (resourceFee > 0) {
     return BigInt(baseFee) + resourceFee;
   } else {
     // For non-Soroban transactions
-    return BigInt(baseFee) + BigInt(60000);
+    return BigInt(baseFee) + BigInt(FEE.RESOURCE_FEE_OFFSET);
   }
 }
 

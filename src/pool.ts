@@ -10,6 +10,7 @@
 import { PluginKVStore, pluginError } from '@openzeppelin/relayer-sdk';
 import crypto from 'crypto';
 import { getLockTtlSeconds } from './config';
+import { HTTP_STATUS, POOL } from './constants';
 
 export type PoolLock = { relayerId: string; token: string };
 
@@ -53,13 +54,13 @@ export class SequencePool {
         }
         return null;
       },
-      { ttlSec: 5 },
+      { ttlSec: POOL.LOCK_TTL_SECONDS },
     );
 
     if (!result) {
       throw pluginError('Too many transactions queued. Please try again later', {
         code: 'POOL_CAPACITY',
-        status: 503,
+        status: HTTP_STATUS.SERVICE_UNAVAILABLE,
       });
     }
 

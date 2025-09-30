@@ -16,6 +16,7 @@ import { checkAuthAndSimDecision } from './authCheck';
 import { simulateAndBuild, validateExistingTransaction } from './simulation';
 import { calculateFee } from './fee';
 import { isManagementRequest, handleManagement } from './management';
+import { HTTP_STATUS, POLLING } from './constants';
 
 async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
   const { api, kv, params } = context;
@@ -45,7 +46,7 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
     if (!sequenceInfo) {
       throw pluginError('Relayer not found', {
         code: 'RELAYER_UNAVAILABLE',
-        status: 502,
+        status: HTTP_STATUS.BAD_GATEWAY,
         details: { relayerId: poolLock.relayerId },
       });
     }
@@ -53,7 +54,7 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
     if (sequenceStatus.network_type !== 'stellar') {
       throw pluginError('Sequence network type is not supported', {
         code: 'UNSUPPORTED_NETWORK',
-        status: 400,
+        status: HTTP_STATUS.BAD_REQUEST,
         details: { network_type: sequenceStatus.network_type },
       });
     }
@@ -79,6 +80,8 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
       ? await simulateAndBuild(extracted, sequenceAccount, sequenceRelayer, rpc, networkPassphrase)
       : validateExistingTransaction(extracted.inputTx!); // We know inputTx exists if not simulating
 
+    console.log('Final transaction:');
+
     // 6. Calculate fee and submit with fee bump
     const fundRelayer = api.useRelayer(config.fundRelayerId);
     const fee = calculateFee(finalTransaction);
@@ -97,15 +100,15 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
 
     try {
       const final = (await api.transactionWait(submission, {
-        interval: 1000,
-        timeout: 25000,
+        interval: POLLING.INTERVAL_MS,
+        timeout: POLLING.TIMEOUT_MS,
       })) as StellarTransactionResponse;
 
       // Check if transaction actually succeeded
       if (final.status === 'failed') {
         throw pluginError(final.status_reason || 'Transaction failed', {
           code: 'ONCHAIN_FAILED',
-          status: 400,
+          status: HTTP_STATUS.BAD_REQUEST,
           details: {
             status: String(final.status),
             reason: final.status_reason ?? null,
@@ -123,7 +126,7 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
     } catch (error: any) {
       throw pluginError('Transaction wait timeout. It may still submit.', {
         code: 'WAIT_TIMEOUT',
-        status: 504,
+        status: HTTP_STATUS.GATEWAY_TIMEOUT,
         details: {
           id: submission.id,
           hash: submission.hash ?? null,

@@ -8,6 +8,7 @@
 import { Transaction, TransactionBuilder, Operation, Account, SorobanRpc, xdr } from '@stellar/stellar-sdk';
 import { pluginError, Relayer, SignTransactionResponseStellar } from '@openzeppelin/relayer-sdk';
 import { ExtractedData, SequenceAccount, RpcClient } from './types';
+import { HTTP_STATUS, SIMULATION } from './constants';
 
 export async function simulateAndBuild(
   extracted: ExtractedData,
@@ -20,12 +21,12 @@ export async function simulateAndBuild(
 
   // Build transaction for simulation using sequence account
   const transaction = new TransactionBuilder(new Account(sequence.address, sequence.sequence), {
-    fee: '100', // Will be updated after simulation
+    fee: SIMULATION.DEFAULT_FEE, // Will be updated after simulation
     networkPassphrase: networkPassphrase,
     ledgerbounds: extracted.inputTx?.ledgerBounds,
     timebounds: extracted.inputTx?.timeBounds || {
-      minTime: 0,
-      maxTime: now + 30,
+      minTime: SIMULATION.MIN_TIME_BOUND,
+      maxTime: now + SIMULATION.MAX_TIME_BOUND_OFFSET_SECONDS,
     },
     memo: extracted.inputTx?.memo,
     minAccountSequence: extracted.inputTx?.minAccountSequence,
@@ -48,13 +49,16 @@ export async function simulateAndBuild(
   if (SorobanRpc.Api.isSimulationError(simResult)) {
     throw pluginError('Simulation failed', {
       code: 'SIMULATION_FAILED',
-      status: 400,
+      status: HTTP_STATUS.BAD_REQUEST,
       details: { error: (simResult as any).error },
     });
   }
 
   if (SorobanRpc.Api.isSimulationRestore(simResult)) {
-    throw pluginError('Restore flow not yet supported', { code: 'RESTORE_UNSUPPORTED', status: 400 });
+    throw pluginError('Restore flow not yet supported', {
+      code: 'RESTORE_UNSUPPORTED',
+      status: HTTP_STATUS.BAD_REQUEST,
+    });
   }
 
   const successResult = simResult as SorobanRpc.Api.SimulateTransactionSuccessResponse;
@@ -67,7 +71,7 @@ export async function simulateAndBuild(
   if (!transactionData) {
     throw pluginError('No transaction data from simulation', {
       code: 'NO_SIMULATION_DATA',
-      status: 400,
+      status: HTTP_STATUS.BAD_REQUEST,
     });
   }
 
@@ -94,7 +98,7 @@ export function validateExistingTransaction(tx: Transaction): Transaction {
   if (envelope.switch() !== xdr.EnvelopeType.envelopeTypeTx()) {
     throw pluginError('Invalid transaction envelope type', {
       code: 'INVALID_OPERATION',
-      status: 400,
+      status: HTTP_STATUS.BAD_REQUEST,
     });
   }
 
@@ -105,18 +109,21 @@ export function validateExistingTransaction(tx: Transaction): Transaction {
     if (BigInt(tx.fee) > resourceFee + 201n) {
       throw pluginError('Transaction fee must be equal to the resource fee', {
         code: 'FEE_MISMATCH',
-        status: 400,
+        status: HTTP_STATUS.BAD_REQUEST,
         details: { fee: tx.fee, resourceFee: resourceFee.toString() },
       });
     }
   }
 
   const now = Math.floor(Date.now() / 1000);
-  if (tx.timeBounds?.maxTime && Number(tx.timeBounds.maxTime) - now > 30) {
-    throw pluginError('Transaction `timeBounds.maxTime` too far into the future. Must be no greater than 30 seconds', {
-      code: 'TIMEBOUNDS_TOO_FAR',
-      status: 400,
-    });
+  if (tx.timeBounds?.maxTime && Number(tx.timeBounds.maxTime) - now > SIMULATION.MAX_FUTURE_TIME_BOUND_SECONDS) {
+    throw pluginError(
+      `Transaction \`timeBounds.maxTime\` too far into the future. Must be no greater than ${SIMULATION.MAX_FUTURE_TIME_BOUND_SECONDS} seconds`,
+      {
+        code: 'TIMEBOUNDS_TOO_FAR',
+        status: HTTP_STATUS.BAD_REQUEST,
+      },
+    );
   }
 
   return tx;
@@ -128,7 +135,10 @@ function validateSimulatedAuth(
 ): void {
   if (providedAuth && providedAuth.length > 0) {
     if (!simulatedAuth || simulatedAuth.length === 0) {
-      throw pluginError('Auth invalid - simulation returned no auth', { code: 'AUTH_INVALID', status: 400 });
+      throw pluginError('Auth invalid - simulation returned no auth', {
+        code: 'AUTH_INVALID',
+        status: HTTP_STATUS.BAD_REQUEST,
+      });
     }
 
     // Check arrays have same auth entries (order doesn't matter)
@@ -141,7 +151,10 @@ function validateSimulatedAuth(
       simulatedAuthXdr.every((a) => providedAuthXdr.includes(a));
 
     if (!authMatches) {
-      throw pluginError('Auth invalid - simulation returned different auth', { code: 'AUTH_INVALID', status: 400 });
+      throw pluginError('Auth invalid - simulation returned different auth', {
+        code: 'AUTH_INVALID',
+        status: HTTP_STATUS.BAD_REQUEST,
+      });
     }
   }
 }

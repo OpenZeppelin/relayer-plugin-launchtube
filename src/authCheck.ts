@@ -8,6 +8,7 @@
 import { xdr, Address } from '@stellar/stellar-sdk';
 import { pluginError } from '@openzeppelin/relayer-sdk';
 import { LaunchtubeRequest, ExtractedData, AuthCheckResult, SequenceAccount } from './types';
+import { HTTP_STATUS } from './constants';
 
 export function checkAuthAndSimDecision(
   request: LaunchtubeRequest,
@@ -38,7 +39,7 @@ export function checkAuthAndSimDecision(
         if (txSource === sequence.address || opSource === sequence.address) {
           throw pluginError('`sorobanCredentialsSourceAccount` is invalid', {
             code: 'INVALID_CREDENTIALS',
-            status: 400,
+            status: HTTP_STATUS.BAD_REQUEST,
             details: { reason: 'cannot use sequence account as source' },
           });
         }
@@ -56,7 +57,7 @@ export function checkAuthAndSimDecision(
           ) {
             throw pluginError('`sorobanCredentialsAddress` is invalid', {
               code: 'INVALID_CREDENTIALS',
-              status: 400,
+              status: HTTP_STATUS.BAD_REQUEST,
               details: { reason: 'cannot use sequence account in auth' },
             });
           }
@@ -65,7 +66,7 @@ export function checkAuthAndSimDecision(
       }
 
       default:
-        throw pluginError('Invalid credentials', { code: 'INVALID_CREDENTIALS', status: 400 });
+        throw pluginError('Invalid credentials', { code: 'INVALID_CREDENTIALS', status: HTTP_STATUS.BAD_REQUEST });
     }
   }
 

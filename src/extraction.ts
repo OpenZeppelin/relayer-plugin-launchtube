@@ -1,6 +1,6 @@
 /**
  * extraction.ts
- * 
+ *
  * Extracts host function and authorization data from Stellar transactions.
  * Handles both XDR transactions and direct function/auth parameters.
  */
@@ -8,6 +8,7 @@
 import { Transaction, Operation, xdr } from '@stellar/stellar-sdk';
 import { pluginError } from '@openzeppelin/relayer-sdk';
 import { LaunchtubeRequest, ExtractedData } from './types';
+import { HTTP_STATUS } from './constants';
 
 export function extractFunctionAndAuth(request: LaunchtubeRequest, networkPassphrase: string): ExtractedData {
   if (request.type === 'xdr') {
@@ -18,7 +19,7 @@ export function extractFunctionAndAuth(request: LaunchtubeRequest, networkPassph
     if (tx.operations.length !== 1) {
       throw pluginError('Must include only one Soroban operation', {
         code: 'INVALID_OPERATION',
-        status: 400,
+        status: HTTP_STATUS.BAD_REQUEST,
         details: { opCount: tx.operations.length },
       });
     }
@@ -27,7 +28,7 @@ export function extractFunctionAndAuth(request: LaunchtubeRequest, networkPassph
     if (operation.type !== 'invokeHostFunction') {
       throw pluginError('Must include only one operation of type `invokeHostFunction`', {
         code: 'INVALID_OPERATION',
-        status: 400,
+        status: HTTP_STATUS.BAD_REQUEST,
         details: { operationType: operation.type },
       });
     }
@@ -65,7 +66,7 @@ function validateHostFunction(func: xdr.HostFunction): void {
   ) {
     throw pluginError('Operation func must be of type `hostFunctionTypeInvokeContract`', {
       code: 'INVALID_OPERATION',
-      status: 400,
+      status: HTTP_STATUS.BAD_REQUEST,
     });
   }
 }

@@ -7,6 +7,7 @@
 
 import { Networks } from '@stellar/stellar-sdk';
 import { pluginError } from '@openzeppelin/relayer-sdk';
+import { HTTP_STATUS, CONFIG } from './constants';
 
 export interface LaunchtubeConfig {
   fundRelayerId: string;
@@ -19,7 +20,7 @@ function requireEnv(name: string): string {
   if (!v || v.trim() === '') {
     throw pluginError(`Missing required environment variable: ${name}`, {
       code: 'CONFIG_MISSING',
-      status: 500,
+      status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
       details: { name },
     });
   }
@@ -34,7 +35,7 @@ export function loadConfig(): LaunchtubeConfig {
   if (networkRaw !== 'testnet' && networkRaw !== 'mainnet') {
     throw pluginError('STELLAR_NETWORK must be "testnet" or "mainnet"', {
       code: 'UNSUPPORTED_NETWORK',
-      status: 400,
+      status: HTTP_STATUS.BAD_REQUEST,
     });
   }
 
@@ -58,8 +59,10 @@ export function getNetworkPassphrase(network: 'testnet' | 'mainnet'): string {
 /** Convenience: per-relayer lock TTL in seconds (default 30) */
 export function getLockTtlSeconds(): number {
   const raw = process.env.LOCK_TTL_SECONDS;
-  if (!raw) return 30;
+  if (!raw) return CONFIG.DEFAULT_LOCK_TTL_SECONDS;
   const n = Number(raw);
-  if (!Number.isFinite(n) || n < 10 || n > 30) return 30;
+  if (!Number.isFinite(n) || n < CONFIG.MIN_LOCK_TTL_SECONDS || n > CONFIG.MAX_LOCK_TTL_SECONDS) {
+    return CONFIG.DEFAULT_LOCK_TTL_SECONDS;
+  }
   return Math.floor(n);
 }

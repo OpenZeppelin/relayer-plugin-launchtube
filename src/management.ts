@@ -9,6 +9,7 @@
 import type { PluginContext, PluginKVStore } from '@openzeppelin/relayer-sdk';
 import { pluginError } from '@openzeppelin/relayer-sdk';
 import { loadConfig } from './config';
+import { HTTP_STATUS } from './constants';
 
 function getAdminSecret(): string | undefined {
   const v = process.env.LAUNCHTUBE_ADMIN_SECRET;
@@ -42,14 +43,14 @@ export async function handleManagement(context: PluginContext): Promise<any> {
   if (!adminSecretEnv) {
     throw pluginError('Management API disabled', {
       code: 'MANAGEMENT_DISABLED',
-      status: 403,
+      status: HTTP_STATUS.FORBIDDEN,
     });
   }
 
   const m = params?.management || {};
   const provided = (m.adminSecret ?? '').toString();
   if (!provided || !timingSafeEqual(provided, adminSecretEnv)) {
-    throw pluginError('Unauthorized', { code: 'UNAUTHORIZED', status: 401 });
+    throw pluginError('Unauthorized', { code: 'UNAUTHORIZED', status: HTTP_STATUS.UNAUTHORIZED });
   }
 
   const action = String(m.action || '');
@@ -61,7 +62,7 @@ export async function handleManagement(context: PluginContext): Promise<any> {
     case 'setSequenceAccounts':
       return await setSequenceAccounts(kv, cfg.network, m);
     default:
-      throw pluginError('Invalid management action', { code: 'INVALID_ACTION', status: 400 });
+      throw pluginError('Invalid management action', { code: 'INVALID_ACTION', status: HTTP_STATUS.BAD_REQUEST });
   }
 }
 
@@ -74,7 +75,7 @@ async function listSequenceAccounts(kv: PluginKVStore, network: 'testnet' | 'mai
   } catch (e: any) {
     throw pluginError('KV error while listing sequence accounts', {
       code: 'KV_ERROR',
-      status: 500,
+      status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
     });
   }
 }
@@ -84,7 +85,7 @@ async function setSequenceAccounts(kv: PluginKVStore, network: 'testnet' | 'main
   if (!Array.isArray(incoming)) {
     throw pluginError('Invalid payload: relayerIds must be an array', {
       code: 'INVALID_PAYLOAD',
-      status: 400,
+      status: HTTP_STATUS.BAD_REQUEST,
     });
   }
   // Normalize, validate, unique
@@ -92,30 +93,20 @@ async function setSequenceAccounts(kv: PluginKVStore, network: 'testnet' | 'main
 
   // Read current
   const listKey = `${network}:sequence:relayer-ids`;
-  let current: string[] = [];
-  try {
-    const doc: any = await (kv as any).get?.(listKey);
-    current = Array.isArray(doc?.relayerIds) ? doc.relayerIds.map(normalizeId) : [];
-  } catch {
-    /* ignore */
-  }
+  const current = await readStoredRelayerIds(kv, listKey);
 
   // Check for locked removals
   const removals = current.filter((id) => !relayerIds.includes(id));
   const locked: string[] = [];
   for (const id of removals) {
-    try {
-      if (await kv.exists(`${network}:sequence:in-use:${id}`)) {
-        locked.push(id);
-      }
-    } catch {
-      /* ignore exists errors */
+    if (await isRelayerIdLocked(kv, network, id)) {
+      locked.push(id);
     }
   }
   if (locked.length > 0) {
     throw pluginError('Locked relayer IDs cannot be removed', {
       code: 'LOCKED_CONFLICT',
-      status: 409,
+      status: HTTP_STATUS.CONFLICT,
       details: { locked },
     });
   }
@@ -127,7 +118,7 @@ async function setSequenceAccounts(kv: PluginKVStore, network: 'testnet' | 'main
   } catch (e: any) {
     throw pluginError('KV error while saving sequence accounts', {
       code: 'KV_ERROR',
-      status: 500,
+      status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
     });
   }
 }
@@ -144,4 +135,23 @@ function validRelayerId(id: string): boolean {
 
 function unique(arr: string[]): string[] {
   return Array.from(new Set(arr));
+}
+
+async function readStoredRelayerIds(kv: PluginKVStore, key: string): Promise<string[]> {
+  try {
+    const doc: any = await (kv as any).get?.(key);
+    return Array.isArray(doc?.relayerIds) ? doc.relayerIds.map(normalizeId) : [];
+  } catch {
+    // Treat missing/invalid records the same as no stored relayers.
+    return [];
+  }
+}
+
+async function isRelayerIdLocked(kv: PluginKVStore, network: 'testnet' | 'mainnet', id: string): Promise<boolean> {
+  try {
+    return await kv.exists(`${network}:sequence:in-use:${id}`);
+  } catch {
+    // If the lock check fails, err on the side of allowing the update.
+    return false;
+  }
 }
