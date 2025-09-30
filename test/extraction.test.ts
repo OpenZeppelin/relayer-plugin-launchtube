@@ -1,6 +1,5 @@
 import { Account, Contract, Keypair, Networks, Operation, TransactionBuilder, xdr } from '@stellar/stellar-sdk';
 import { extractFunctionAndAuth } from '../src/extraction';
-import { ValidationError } from '../src/types';
 
 const CONTRACT_ID = 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC';
 
@@ -36,7 +35,7 @@ describe('extraction', () => {
       .build();
 
     expect(() => extractFunctionAndAuth({ type: 'xdr', xdr: tx.toXDR(), sim: true }, Networks.TESTNET)).toThrow(
-      ValidationError,
+      'Must include only one operation of type `invokeHostFunction`',
     );
   });
 
@@ -52,7 +51,7 @@ describe('extraction', () => {
       .build();
 
     expect(() => extractFunctionAndAuth({ type: 'xdr', xdr: tx.toXDR(), sim: true }, Networks.TESTNET)).toThrow(
-      ValidationError,
+      'Must include only one Soroban operation',
     );
   });
 

@@ -6,7 +6,8 @@
  */
 
 import { Transaction, Operation, xdr } from '@stellar/stellar-sdk';
-import { LaunchtubeRequest, ExtractedData, ValidationError } from './types';
+import { pluginError } from '@openzeppelin/relayer-sdk';
+import { LaunchtubeRequest, ExtractedData } from './types';
 
 export function extractFunctionAndAuth(request: LaunchtubeRequest, networkPassphrase: string): ExtractedData {
   if (request.type === 'xdr') {
@@ -15,12 +16,20 @@ export function extractFunctionAndAuth(request: LaunchtubeRequest, networkPassph
 
     // Validate transaction structure
     if (tx.operations.length !== 1) {
-      throw new ValidationError('Must include only one Soroban operation');
+      throw pluginError('Must include only one Soroban operation', {
+        code: 'INVALID_OPERATION',
+        status: 400,
+        details: { opCount: tx.operations.length },
+      });
     }
 
     const operation = tx.operations[0];
     if (operation.type !== 'invokeHostFunction') {
-      throw new ValidationError('Must include only one operation of type invokeHostFunction');
+      throw pluginError('Must include only one operation of type `invokeHostFunction`', {
+        code: 'INVALID_OPERATION',
+        status: 400,
+        details: { operationType: operation.type },
+      });
     }
 
     const op = operation as Operation.InvokeHostFunction;
@@ -54,8 +63,9 @@ function validateHostFunction(func: xdr.HostFunction): void {
     func.switch() !== xdr.HostFunctionType.hostFunctionTypeInvokeContract() &&
     func.switch() !== xdr.HostFunctionType.hostFunctionTypeCreateContract()
   ) {
-    throw new ValidationError(
-      'Operation func must be of type `hostFunctionTypeInvokeContract` or `hostFunctionTypeCreateContract`',
-    );
+    throw pluginError('Operation func must be of type `hostFunctionTypeInvokeContract`', {
+      code: 'INVALID_OPERATION',
+      status: 400,
+    });
   }
 }

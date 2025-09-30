@@ -1,5 +1,4 @@
 import { validateAndParseRequest } from '../src/validation';
-import { ValidationError } from '../src/types';
 
 describe('validation', () => {
   test('xdr path: sim defaults to true', () => {
@@ -18,25 +17,35 @@ describe('validation', () => {
   });
 
   test('error: sim=false without xdr', () => {
-    expect(() => validateAndParseRequest({ sim: false } as any)).toThrow(ValidationError);
-    expect(() => validateAndParseRequest({ sim: false } as any)).toThrow('Cannot pass `sim = false` without `xdr`');
+    try {
+      validateAndParseRequest({ sim: false } as any);
+      throw new Error('should have thrown');
+    } catch (e: any) {
+      expect(e.message).toContain('Cannot pass `sim = false` without `xdr`');
+      expect(e.status).toBe(400);
+      expect(e.code).toBe('INVALID_PARAMS');
+    }
   });
 
   test('error: xdr with func or auth present', () => {
-    expect(() => validateAndParseRequest({ xdr: 'X', func: 'F' } as any)).toThrow(ValidationError);
-    expect(() => validateAndParseRequest({ xdr: 'X', auth: [] } as any)).toThrow(ValidationError);
+    expect(() => validateAndParseRequest({ xdr: 'X', func: 'F' } as any)).toThrow(
+      '`func` and `auth` must be omitted when passing `xdr`',
+    );
+    expect(() => validateAndParseRequest({ xdr: 'X', auth: [] } as any)).toThrow(
+      '`func` and `auth` must be omitted when passing `xdr`',
+    );
   });
 
   test('error: neither xdr nor func+auth provided', () => {
-    expect(() => validateAndParseRequest({} as any)).toThrow(ValidationError);
     expect(() => validateAndParseRequest({} as any)).toThrow('Must pass either `xdr` or `func` and `auth`');
   });
 
   test('error: missing one of func/auth when omitting xdr', () => {
-    expect(() => validateAndParseRequest({ func: 'F' } as any)).toThrow(ValidationError);
     expect(() => validateAndParseRequest({ func: 'F' } as any)).toThrow(
       '`func` and `auth` are both required when omitting `xdr`',
     );
-    expect(() => validateAndParseRequest({ auth: [] } as any)).toThrow(ValidationError);
+    expect(() => validateAndParseRequest({ auth: [] } as any)).toThrow(
+      '`func` and `auth` are both required when omitting `xdr`',
+    );
   });
 });

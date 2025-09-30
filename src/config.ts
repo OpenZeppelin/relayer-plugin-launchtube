@@ -6,6 +6,7 @@
  */
 
 import { Networks } from '@stellar/stellar-sdk';
+import { pluginError } from '@openzeppelin/relayer-sdk';
 
 export interface LaunchtubeConfig {
   fundRelayerId: string;
@@ -16,7 +17,11 @@ export interface LaunchtubeConfig {
 function requireEnv(name: string): string {
   const v = process.env[name];
   if (!v || v.trim() === '') {
-    throw new Error(`Missing required environment variable: ${name}`);
+    throw pluginError(`Missing required environment variable: ${name}`, {
+      code: 'CONFIG_MISSING',
+      status: 500,
+      details: { name },
+    });
   }
   return v.trim();
 }
@@ -27,7 +32,10 @@ function requireEnv(name: string): string {
 export function loadConfig(): LaunchtubeConfig {
   const networkRaw = requireEnv('STELLAR_NETWORK').toLowerCase();
   if (networkRaw !== 'testnet' && networkRaw !== 'mainnet') {
-    throw new Error('STELLAR_NETWORK must be "testnet" or "mainnet"');
+    throw pluginError('STELLAR_NETWORK must be "testnet" or "mainnet"', {
+      code: 'UNSUPPORTED_NETWORK',
+      status: 400,
+    });
   }
 
   const rpcUrl = requireEnv('SOROBAN_RPC_URL');

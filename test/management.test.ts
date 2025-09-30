@@ -20,19 +20,17 @@ describe('management API', () => {
 
   test('unauthorized when admin secret mismatches', async () => {
     const kv = new FakeKV();
-    const res = await handleManagement(
-      baseContext(kv, { management: { action: 'listSequenceAccounts', adminSecret: 'wrong' } }),
-    );
-    expect(res).toEqual({ error: 'unauthorized' });
+    await expect(
+      handleManagement(baseContext(kv, { management: { action: 'listSequenceAccounts', adminSecret: 'wrong' } })),
+    ).rejects.toMatchObject({ status: 401, code: 'UNAUTHORIZED' });
   });
 
   test('management disabled when no LAUNCHTUBE_ADMIN_SECRET', async () => {
     delete process.env.LAUNCHTUBE_ADMIN_SECRET;
     const kv = new FakeKV();
-    const res = await handleManagement(
-      baseContext(kv, { management: { action: 'listSequenceAccounts', adminSecret: 'x' } }),
-    );
-    expect(res).toEqual({ error: 'management_disabled' });
+    await expect(
+      handleManagement(baseContext(kv, { management: { action: 'listSequenceAccounts', adminSecret: 'x' } })),
+    ).rejects.toMatchObject({ status: 403, code: 'MANAGEMENT_DISABLED' });
   });
 
   test('list returns empty array when missing key', async () => {
@@ -71,13 +69,13 @@ describe('management API', () => {
       lockedAt: new Date().toISOString(),
     });
 
-    const res = await handleManagement(
-      baseContext(kv, {
-        management: { action: 'setSequenceAccounts', adminSecret: 'secret', relayerIds: ['a'] },
-      }),
-    );
-
-    expect(res).toEqual({ error: 'locked_conflict', code: 'LOCKED_CONFLICT', locked: ['b'] });
+    await expect(
+      handleManagement(
+        baseContext(kv, {
+          management: { action: 'setSequenceAccounts', adminSecret: 'secret', relayerIds: ['a'] },
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 409, code: 'LOCKED_CONFLICT', details: { locked: ['b'] } });
 
     const listAfter = await handleManagement(
       baseContext(kv, { management: { action: 'listSequenceAccounts', adminSecret: 'secret' } }),
@@ -87,16 +85,16 @@ describe('management API', () => {
 
   test('invalid_action returns error', async () => {
     const kv = new FakeKV();
-    const res = await handleManagement(baseContext(kv, { management: { action: 'nope', adminSecret: 'secret' } }));
-    expect(res).toEqual({ error: 'invalid_action' });
+    await expect(
+      handleManagement(baseContext(kv, { management: { action: 'nope', adminSecret: 'secret' } })),
+    ).rejects.toMatchObject({ status: 400, code: 'INVALID_ACTION' });
   });
 
   test('invalid_payload on set without relayerIds', async () => {
     const kv = new FakeKV();
-    const res = await handleManagement(
-      baseContext(kv, { management: { action: 'setSequenceAccounts', adminSecret: 'secret' } }),
-    );
-    expect(res).toEqual({ error: 'invalid_payload' });
+    await expect(
+      handleManagement(baseContext(kv, { management: { action: 'setSequenceAccounts', adminSecret: 'secret' } })),
+    ).rejects.toMatchObject({ status: 400, code: 'INVALID_PAYLOAD' });
   });
 
   test('list normalizes duplicates and casing from KV doc', async () => {

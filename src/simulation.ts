@@ -1,13 +1,13 @@
 /**
  * simulation.ts
- * 
+ *
  * Handles Soroban transaction simulation and building.
  * Manages transaction validation and resource fee calculations.
  */
 
 import { Transaction, TransactionBuilder, Operation, Account, SorobanRpc, xdr } from '@stellar/stellar-sdk';
-import { ExtractedData, SequenceAccount, RpcClient, SimulationError, ValidationError } from './types';
-import { Relayer, SignTransactionResponseStellar } from '@openzeppelin/relayer-sdk';
+import { pluginError, Relayer, SignTransactionResponseStellar } from '@openzeppelin/relayer-sdk';
+import { ExtractedData, SequenceAccount, RpcClient } from './types';
 
 export async function simulateAndBuild(
   extracted: ExtractedData,
@@ -43,15 +43,18 @@ export async function simulateAndBuild(
     .build();
 
   // Simulate the transaction
-  console.log('Simulating transaction...');
   const simResult = await rpc.simulateTransaction(transaction);
 
   if (SorobanRpc.Api.isSimulationError(simResult)) {
-    throw new SimulationError(`Simulation failed: ${simResult.error}`);
+    throw pluginError('Simulation failed', {
+      code: 'SIMULATION_FAILED',
+      status: 400,
+      details: { error: (simResult as any).error },
+    });
   }
 
   if (SorobanRpc.Api.isSimulationRestore(simResult)) {
-    throw new SimulationError('Restore flow not yet supported');
+    throw pluginError('Restore flow not yet supported', { code: 'RESTORE_UNSUPPORTED', status: 400 });
   }
 
   const successResult = simResult as SorobanRpc.Api.SimulateTransactionSuccessResponse;
@@ -62,7 +65,10 @@ export async function simulateAndBuild(
   // Get transaction data and build final transaction
   const transactionData = successResult.transactionData;
   if (!transactionData) {
-    throw new SimulationError('No transaction data from simulation');
+    throw pluginError('No transaction data from simulation', {
+      code: 'NO_SIMULATION_DATA',
+      status: 400,
+    });
   }
 
   const sorobanData = transactionData.build();
@@ -86,7 +92,10 @@ export function validateExistingTransaction(tx: Transaction): Transaction {
   // Validate transaction constraints for non-simulated path
   const envelope = tx.toEnvelope();
   if (envelope.switch() !== xdr.EnvelopeType.envelopeTypeTx()) {
-    throw new ValidationError('Invalid transaction envelope type');
+    throw pluginError('Invalid transaction envelope type', {
+      code: 'INVALID_OPERATION',
+      status: 400,
+    });
   }
 
   const sorobanData = envelope.v1().tx().ext().sorobanData();
@@ -94,15 +103,20 @@ export function validateExistingTransaction(tx: Transaction): Transaction {
     const resourceFee = sorobanData.resourceFee().toBigInt();
 
     if (BigInt(tx.fee) > resourceFee + 201n) {
-      throw new ValidationError('Transaction fee must be equal to the resource fee');
+      throw pluginError('Transaction fee must be equal to the resource fee', {
+        code: 'FEE_MISMATCH',
+        status: 400,
+        details: { fee: tx.fee, resourceFee: resourceFee.toString() },
+      });
     }
   }
 
   const now = Math.floor(Date.now() / 1000);
   if (tx.timeBounds?.maxTime && Number(tx.timeBounds.maxTime) - now > 30) {
-    throw new ValidationError(
-      'Transaction `timeBounds.maxTime` too far into the future. Must be no greater than 30 seconds',
-    );
+    throw pluginError('Transaction `timeBounds.maxTime` too far into the future. Must be no greater than 30 seconds', {
+      code: 'TIMEBOUNDS_TOO_FAR',
+      status: 400,
+    });
   }
 
   return tx;
@@ -114,7 +128,7 @@ function validateSimulatedAuth(
 ): void {
   if (providedAuth && providedAuth.length > 0) {
     if (!simulatedAuth || simulatedAuth.length === 0) {
-      throw new ValidationError('Auth invalid - simulation returned no auth');
+      throw pluginError('Auth invalid - simulation returned no auth', { code: 'AUTH_INVALID', status: 400 });
     }
 
     // Check arrays have same auth entries (order doesn't matter)
@@ -127,7 +141,7 @@ function validateSimulatedAuth(
       simulatedAuthXdr.every((a) => providedAuthXdr.includes(a));
 
     if (!authMatches) {
-      throw new ValidationError('Auth invalid - simulation returned different auth');
+      throw pluginError('Auth invalid - simulation returned different auth', { code: 'AUTH_INVALID', status: 400 });
     }
   }
 }

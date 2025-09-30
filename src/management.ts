@@ -7,6 +7,7 @@
  */
 
 import type { PluginContext, PluginKVStore } from '@openzeppelin/relayer-sdk';
+import { pluginError } from '@openzeppelin/relayer-sdk';
 import { loadConfig } from './config';
 
 function getAdminSecret(): string | undefined {
@@ -39,13 +40,16 @@ export async function handleManagement(context: PluginContext): Promise<any> {
   const { kv, params } = context;
   const adminSecretEnv = getAdminSecret();
   if (!adminSecretEnv) {
-    return { error: 'management_disabled' };
+    throw pluginError('Management API disabled', {
+      code: 'MANAGEMENT_DISABLED',
+      status: 403,
+    });
   }
 
   const m = params?.management || {};
   const provided = (m.adminSecret ?? '').toString();
   if (!provided || !timingSafeEqual(provided, adminSecretEnv)) {
-    return { error: 'unauthorized' };
+    throw pluginError('Unauthorized', { code: 'UNAUTHORIZED', status: 401 });
   }
 
   const action = String(m.action || '');
@@ -57,7 +61,7 @@ export async function handleManagement(context: PluginContext): Promise<any> {
     case 'setSequenceAccounts':
       return await setSequenceAccounts(kv, cfg.network, m);
     default:
-      return { error: 'invalid_action' };
+      throw pluginError('Invalid management action', { code: 'INVALID_ACTION', status: 400 });
   }
 }
 
@@ -68,14 +72,20 @@ async function listSequenceAccounts(kv: PluginKVStore, network: 'testnet' | 'mai
     const relayerIds: string[] = Array.isArray(doc?.relayerIds) ? doc.relayerIds.map(normalizeId) : [];
     return { relayerIds };
   } catch (e: any) {
-    return { error: 'kv_error' };
+    throw pluginError('KV error while listing sequence accounts', {
+      code: 'KV_ERROR',
+      status: 500,
+    });
   }
 }
 
 async function setSequenceAccounts(kv: PluginKVStore, network: 'testnet' | 'mainnet', payload: any): Promise<any> {
   const incoming = payload?.relayerIds;
   if (!Array.isArray(incoming)) {
-    return { error: 'invalid_payload' };
+    throw pluginError('Invalid payload: relayerIds must be an array', {
+      code: 'INVALID_PAYLOAD',
+      status: 400,
+    });
   }
   // Normalize, validate, unique
   const relayerIds = unique(incoming.map(normalizeId).filter(validRelayerId));
@@ -103,7 +113,11 @@ async function setSequenceAccounts(kv: PluginKVStore, network: 'testnet' | 'main
     }
   }
   if (locked.length > 0) {
-    return { error: 'locked_conflict', code: 'LOCKED_CONFLICT', locked };
+    throw pluginError('Locked relayer IDs cannot be removed', {
+      code: 'LOCKED_CONFLICT',
+      status: 409,
+      details: { locked },
+    });
   }
 
   // Write new list
@@ -111,7 +125,10 @@ async function setSequenceAccounts(kv: PluginKVStore, network: 'testnet' | 'main
     await kv.set(listKey, { relayerIds });
     return { ok: true, appliedRelayerIds: relayerIds };
   } catch (e: any) {
-    return { error: 'kv_error' };
+    throw pluginError('KV error while saving sequence accounts', {
+      code: 'KV_ERROR',
+      status: 500,
+    });
   }
 }
 

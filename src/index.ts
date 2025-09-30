@@ -5,7 +5,7 @@
  * Orchestrates the transaction processing pipeline for Stellar/Soroban operations.
  */
 
-import type { StellarTransactionResponse, PluginContext } from '@openzeppelin/relayer-sdk';
+import { StellarTransactionResponse, PluginContext, pluginError } from '@openzeppelin/relayer-sdk';
 import { SorobanRpc } from '@stellar/stellar-sdk';
 import { PoolLock, SequencePool } from './pool';
 import { loadConfig, getNetworkPassphrase } from './config';
@@ -43,11 +43,19 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
     const sequenceInfo = await sequenceRelayer.getRelayer();
 
     if (!sequenceInfo) {
-      throw new Error('No sequence info found');
+      throw pluginError('Relayer not found', {
+        code: 'RELAYER_UNAVAILABLE',
+        status: 502,
+        details: { relayerId: poolLock.relayerId },
+      });
     }
     const sequenceStatus = await sequenceRelayer.getRelayerStatus();
     if (sequenceStatus.network_type !== 'stellar') {
-      throw new Error('Sequence network type is not supported');
+      throw pluginError('Sequence network type is not supported', {
+        code: 'UNSUPPORTED_NETWORK',
+        status: 400,
+        details: { network_type: sequenceStatus.network_type },
+      });
     }
 
     // Create complete sequence account with all required info
@@ -75,17 +83,6 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
     const fundRelayer = api.useRelayer(config.fundRelayerId);
     const fee = calculateFee(finalTransaction);
 
-    console.log('Transaction details:', {
-      hasSorobanData: !!finalTransaction.toEnvelope().v1()?.tx().ext().sorobanData(),
-      fee: fee.toString(),
-      hasSignatures: finalTransaction.signatures.length > 0,
-      operationType: finalTransaction.operations[0]?.type,
-      source: finalTransaction.source,
-      sequence: finalTransaction.sequence,
-    });
-
-    console.log('Final transaction XDR:', finalTransaction.toXDR());
-
     const submission = await fundRelayer.sendTransaction({
       network: config.network,
       transaction_xdr: finalTransaction.toXDR(),
@@ -98,22 +95,40 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
       poolLock = undefined;
     }
 
-    // 7. Use relayer's transactionWait (debug)
     try {
       const final = (await api.transactionWait(submission, {
-        interval: 500,
+        interval: 1000,
         timeout: 25000,
       })) as StellarTransactionResponse;
+
+      // Check if transaction actually succeeded
+      if (final.status === 'failed') {
+        throw pluginError(final.status_reason || 'Transaction failed', {
+          code: 'ONCHAIN_FAILED',
+          status: 400,
+          details: {
+            status: String(final.status),
+            reason: final.status_reason ?? null,
+            id: final.id,
+            hash: final.hash ?? null,
+          },
+        });
+      }
+
       return {
         transactionId: final.id,
+        status: final.status,
         hash: final.hash ?? null,
       };
-    } catch (error) {
-      return {
-        transactionId: submission.id,
-        hash: submission.hash ?? null,
-        error: 'Transaction was queued, but waiting for submission failed. It may still submit.',
-      };
+    } catch (error: any) {
+      throw pluginError('Transaction wait timeout. It may still submit.', {
+        code: 'WAIT_TIMEOUT',
+        status: 504,
+        details: {
+          id: submission.id,
+          hash: submission.hash ?? null,
+        },
+      });
     }
   } finally {
     if (poolLock) {
@@ -124,16 +139,6 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
 
 // Error-catching wrapper
 export async function handler(context: PluginContext): Promise<any> {
-  try {
-    const result = await launchtube(context);
-    return result;
-  } catch (error: any) {
-    console.error(`Plugin error: ${error.message || error}`);
-    const errorResult = {
-      error: error.message || String(error),
-      transactionId: null,
-      hash: null,
-    };
-    return errorResult;
-  }
+  const result = await launchtube(context);
+  return result;
 }

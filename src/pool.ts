@@ -7,7 +7,7 @@
  * - Uses a short global mutex to make acquire atomic across workers.
  */
 
-import type { PluginKVStore } from '@openzeppelin/relayer-sdk';
+import { PluginKVStore, pluginError } from '@openzeppelin/relayer-sdk';
 import crypto from 'crypto';
 import { getLockTtlSeconds } from './config';
 
@@ -57,7 +57,10 @@ export class SequencePool {
     );
 
     if (!result) {
-      throw new Error('Too many transactions queued. Please try again later');
+      throw pluginError('Too many transactions queued. Please try again later', {
+        code: 'POOL_CAPACITY',
+        status: 503,
+      });
     }
 
     return result;

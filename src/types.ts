@@ -1,6 +1,6 @@
 /**
  * types.ts
- * 
+ *
  * Type definitions for the Launchtube plugin.
  * Defines request/response structures, error types, and shared interfaces.
  */
@@ -35,33 +35,11 @@ export type SequenceAccount = {
 // Final response
 export type LaunchtubeResponse = {
   transactionId: string | null;
+  status: string | null;
   hash: string | null;
-  error?: string;
 };
 
 // External dependencies
 export interface RpcClient {
   simulateTransaction(tx: Transaction): Promise<SorobanRpc.Api.SimulateTransactionResponse>;
-}
-
-// Errors
-export class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ValidationError';
-  }
-}
-
-export class AuthError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AuthError';
-  }
-}
-
-export class SimulationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SimulationError';
-  }
 }

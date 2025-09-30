@@ -212,7 +212,7 @@ curl -X POST http://localhost:8080/api/v1/plugins/launchtube/call \
 **Important Notes:**
 
 - You must configure at least one sequence account before LaunchTube can process transactions
-- The management API will prevent removing accounts that are currently locked (in use)
+- The management API will prevent removing accounts that are currently locked (in use). On failure it throws a plugin error with status 409, code `LOCKED_CONFLICT`, and `details.locked` listing blocked IDs.
 - All relayer IDs must exist in your OpenZeppelin Relayer configuration
 - The `adminSecret` must match the `LAUNCHTUBE_ADMIN_SECRET` environment variable
 
@@ -262,11 +262,33 @@ curl -X POST http://localhost:8080/api/v1/plugins/launchtube/call \
 
 ### Response
 
-```JSON
+Responses follow the Relayer envelope `{ success, data, error }`.
+
+Success example:
+
+```json
 {
-  "transactionId": "tx_123456",
-  "status": "submitted",
-  "hash": "1234567890abcdef..."
+  "success": true,
+  "data": {
+    "result": {
+      "transactionId": "tx_123456",
+      "hash": "1234567890abcdef..."
+    }
+  },
+  "error": null
+}
+```
+
+Plugin error example:
+
+```json
+{
+  "success": false,
+  "data": {
+    "code": "INVALID_PARAMS",
+    "details": { "sim": false, "xdrProvided": false }
+  },
+  "error": "Cannot pass `sim = false` without `xdr`"
 }
 ```
 
