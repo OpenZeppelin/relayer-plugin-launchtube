@@ -141,17 +141,24 @@ async function readStoredRelayerIds(kv: PluginKVStore, key: string): Promise<str
   try {
     const doc: any = await (kv as any).get?.(key);
     return Array.isArray(doc?.relayerIds) ? doc.relayerIds.map(normalizeId) : [];
-  } catch {
-    // Treat missing/invalid records the same as no stored relayers.
-    return [];
+  } catch (error) {
+    throw pluginError('KV error while reading sequence accounts', {
+      code: 'KV_ERROR',
+      status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      details: { key, message: error instanceof Error ? error.message : String(error) },
+    });
   }
 }
 
 async function isRelayerIdLocked(kv: PluginKVStore, network: 'testnet' | 'mainnet', id: string): Promise<boolean> {
+  const key = `${network}:sequence:in-use:${id}`;
   try {
-    return await kv.exists(`${network}:sequence:in-use:${id}`);
-  } catch {
-    // If the lock check fails, err on the side of allowing the update.
-    return false;
+    return await kv.exists(key);
+  } catch (error) {
+    throw pluginError('KV error while checking relayer lock', {
+      code: 'KV_ERROR',
+      status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      details: { relayerId: id, key, message: error instanceof Error ? error.message : String(error) },
+    });
   }
 }
