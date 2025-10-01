@@ -1,13 +1,13 @@
 /**
  * index.ts
- * 
+ *
  * Main entry point for the Launchtube plugin.
  * Orchestrates the transaction processing pipeline for Stellar/Soroban operations.
  */
 
-import { PluginAPI } from '@openzeppelin/relayer-sdk';
+import { StellarTransactionResponse, PluginContext, pluginError } from '@openzeppelin/relayer-sdk';
 import { SorobanRpc } from '@stellar/stellar-sdk';
-import { SequencePool } from './pool';
+import { PoolLock, SequencePool } from './pool';
 import { loadConfig, getNetworkPassphrase } from './config';
 import { LaunchtubeResponse, RpcClient, SequenceAccount } from './types';
 import { validateAndParseRequest } from './validation';
@@ -15,36 +15,53 @@ import { extractFunctionAndAuth } from './extraction';
 import { checkAuthAndSimDecision } from './authCheck';
 import { simulateAndBuild, validateExistingTransaction } from './simulation';
 import { calculateFee } from './fee';
+import { isManagementRequest, handleManagement } from './management';
+import { HTTP_STATUS, POLLING } from './constants';
 
-// Initialize dependencies
-const config = loadConfig();
-const pool = new SequencePool(config.sequenceRelayerIds);
-const rpc: RpcClient = new SorobanRpc.Server(config.rpcUrl);
+async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
+  const { api, kv, params } = context;
 
-async function launchtube(api: PluginAPI, params: any): Promise<LaunchtubeResponse> {
+  // Management branch: handle and return immediately
+  if (isManagementRequest(params)) {
+    return await handleManagement(context);
+  }
+
+  // Load config and initialize per-request dependencies
+  const config = loadConfig();
+  const pool = new SequencePool(config.network, kv);
+  const rpc: RpcClient = new SorobanRpc.Server(config.rpcUrl);
+
   let sequenceAccount: SequenceAccount | undefined;
-  let poolAccount: { relayerId: string } | undefined;
+  let poolLock: PoolLock | undefined;
 
   try {
     // 1. Validate and parse input into structured request
     const request = validateAndParseRequest(params);
 
     // 2. Get sequence account from pool
-    poolAccount = await pool.acquire();
-    const sequenceRelayer = api.useRelayer(poolAccount.relayerId);
+    poolLock = await pool.acquire();
+    const sequenceRelayer = api.useRelayer(poolLock.relayerId);
     const sequenceInfo = await sequenceRelayer.getRelayer();
 
     if (!sequenceInfo) {
-      throw new Error('No sequence info found');
+      throw pluginError('Relayer not found', {
+        code: 'RELAYER_UNAVAILABLE',
+        status: HTTP_STATUS.BAD_GATEWAY,
+        details: { relayerId: poolLock.relayerId },
+      });
     }
     const sequenceStatus = await sequenceRelayer.getRelayerStatus();
     if (sequenceStatus.network_type !== 'stellar') {
-      throw new Error('Sequence network type is not supported');
+      throw pluginError('Sequence network type is not supported', {
+        code: 'UNSUPPORTED_NETWORK',
+        status: HTTP_STATUS.BAD_REQUEST,
+        details: { network_type: sequenceStatus.network_type },
+      });
     }
 
     // Create complete sequence account with all required info
     sequenceAccount = {
-      relayerId: poolAccount.relayerId,
+      relayerId: poolLock.relayerId,
       address: sequenceInfo.address!,
       sequence: sequenceStatus.sequence_number,
     };
@@ -63,62 +80,68 @@ async function launchtube(api: PluginAPI, params: any): Promise<LaunchtubeRespon
       ? await simulateAndBuild(extracted, sequenceAccount, sequenceRelayer, rpc, networkPassphrase)
       : validateExistingTransaction(extracted.inputTx!); // We know inputTx exists if not simulating
 
+    console.log('Final transaction:');
+
     // 6. Calculate fee and submit with fee bump
     const fundRelayer = api.useRelayer(config.fundRelayerId);
     const fee = calculateFee(finalTransaction);
 
-    console.log('Transaction details:', {
-      hasSorobanData: !!finalTransaction.toEnvelope().v1()?.tx().ext().sorobanData(),
-      fee: fee.toString(),
-      hasSignatures: finalTransaction.signatures.length > 0,
-      operationType: finalTransaction.operations[0]?.type,
-      source: finalTransaction.source,
-      sequence: finalTransaction.sequence,
-    });
-
-    console.log('Final transaction XDR:', finalTransaction.toXDR());
-
-    const result = await fundRelayer.sendTransaction({
+    const submission = await fundRelayer.sendTransaction({
       network: config.network,
       transaction_xdr: finalTransaction.toXDR(),
       fee_bump: true,
       max_fee: parseInt(fee.toString()),
     });
-
-    return {
-      transactionId: result.id,
-      status: result.status,
-      hash: result.hash,
-    };
-  } catch (error: any) {
-    // Always release sequence account on error
-    if (sequenceAccount) {
-      pool.release(sequenceAccount);
-    } else if (poolAccount) {
-      // If we acquired from pool but didn't create sequenceAccount yet
-      pool.release(poolAccount);
+    // Release lock immediately after submission to avoid holding while waiting
+    if (poolLock) {
+      await pool.release(poolLock);
+      poolLock = undefined;
     }
-    throw error;
+
+    try {
+      const final = (await api.transactionWait(submission, {
+        interval: POLLING.INTERVAL_MS,
+        timeout: POLLING.TIMEOUT_MS,
+      })) as StellarTransactionResponse;
+
+      // Check if transaction actually succeeded
+      if (final.status === 'failed') {
+        throw pluginError(final.status_reason || 'Transaction failed', {
+          code: 'ONCHAIN_FAILED',
+          status: HTTP_STATUS.BAD_REQUEST,
+          details: {
+            status: String(final.status),
+            reason: final.status_reason ?? null,
+            id: final.id,
+            hash: final.hash ?? null,
+          },
+        });
+      }
+
+      return {
+        transactionId: final.id,
+        status: final.status,
+        hash: final.hash ?? null,
+      };
+    } catch (error: any) {
+      throw pluginError('Transaction wait timeout. It may still submit.', {
+        code: 'WAIT_TIMEOUT',
+        status: HTTP_STATUS.GATEWAY_TIMEOUT,
+        details: {
+          id: submission.id,
+          hash: submission.hash ?? null,
+        },
+      });
+    }
   } finally {
-    // Release sequence account when done
-    if (sequenceAccount) {
-      pool.release(sequenceAccount);
+    if (poolLock) {
+      await pool.release(poolLock);
     }
   }
 }
 
 // Error-catching wrapper
-export async function handler(api: PluginAPI, params: any): Promise<any> {
-  try {
-    const result = await launchtube(api, params);
-    return result;
-  } catch (error: any) {
-    console.error(`Plugin error: ${error.message || error}`);
-    const errorResult = {
-      error: error.message || String(error),
-      transactionId: null,
-      status: 'failed',
-    };
-    return errorResult;
-  }
+export async function handler(context: PluginContext): Promise<any> {
+  const result = await launchtube(context);
+  return result;
 }

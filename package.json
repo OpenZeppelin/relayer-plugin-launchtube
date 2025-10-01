@@ -23,7 +23,7 @@
     "style": "pnpm lint:fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "echo 'No tests configured yet'",
+    "test": "jest",
     "clean": "rm -rf dist",
     "install-pnpm": "npm install -g pnpm",
     "install-deps": "pnpm install --frozen-lockfile --ignore-scripts --prefer-offline",
@@ -42,7 +42,7 @@
   "homepage": "https://github.com/OpenZeppelin/relayer-plugin-launchtube#readme",
   "dependencies": {
     "@actions/exec": "^1.1.1",
-    "@openzeppelin/relayer-sdk": "^1.4.0",
+    "@openzeppelin/relayer-sdk": "^1.6.0",
     "@stellar/stellar-sdk": "^11.2.0"
   },
   "devDependencies": {
@@ -60,13 +60,13 @@
     "eslint": "^9.22.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",
-    "typescript-eslint": "8.27.0",
     "globals": "^16.3.0",
     "jest": "^29.7.0",
     "nx": "^20.8.0",
     "prettier": "^3.0.0",
     "ts-jest": "^29.1.2",
-    "typescript": "5.8.3"
+    "typescript": "5.8.3",
+    "typescript-eslint": "8.27.0"
   },
   "engines": {
     "node": ">=22.18.0",

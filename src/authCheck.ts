@@ -1,12 +1,14 @@
 /**
  * authCheck.ts
- * 
+ *
  * Validates Soroban authorization entries and determines simulation requirements.
  * Checks for auth violations and handles source account authentication scenarios.
  */
 
 import { xdr, Address } from '@stellar/stellar-sdk';
-import { LaunchtubeRequest, ExtractedData, AuthCheckResult, SequenceAccount, AuthError } from './types';
+import { pluginError } from '@openzeppelin/relayer-sdk';
+import { LaunchtubeRequest, ExtractedData, AuthCheckResult, SequenceAccount } from './types';
+import { HTTP_STATUS } from './constants';
 
 export function checkAuthAndSimDecision(
   request: LaunchtubeRequest,
@@ -35,7 +37,11 @@ export function checkAuthAndSimDecision(
         const opSource = (extracted.inputTx?.operations[0] as any)?.source;
 
         if (txSource === sequence.address || opSource === sequence.address) {
-          violations.push('`sorobanCredentialsSourceAccount` is invalid - cannot use sequence account as source');
+          throw pluginError('`sorobanCredentialsSourceAccount` is invalid', {
+            code: 'INVALID_CREDENTIALS',
+            status: HTTP_STATUS.BAD_REQUEST,
+            details: { reason: 'cannot use sequence account as source' },
+          });
         }
         break;
       }
@@ -49,21 +55,22 @@ export function checkAuthAndSimDecision(
             pk.switch() === xdr.PublicKeyType.publicKeyTypeEd25519() &&
             Address.account(pk.ed25519()).toString() === sequence.address
           ) {
-            violations.push('`sorobanCredentialsAddress` is invalid - cannot use sequence account in auth');
+            throw pluginError('`sorobanCredentialsAddress` is invalid', {
+              code: 'INVALID_CREDENTIALS',
+              status: HTTP_STATUS.BAD_REQUEST,
+              details: { reason: 'cannot use sequence account in auth' },
+            });
           }
         }
         break;
       }
 
       default:
-        violations.push('Invalid credentials type');
+        throw pluginError('Invalid credentials', { code: 'INVALID_CREDENTIALS', status: HTTP_STATUS.BAD_REQUEST });
     }
   }
 
-  // Throw if we found any violations
-  if (violations.length > 0) {
-    throw new AuthError(violations.join('; '));
-  }
+  // No violations check needed - we throw immediately on errors now
 
   // Determine if we should simulate
   let shouldSimulate = request.sim && !forceNoSimulation;

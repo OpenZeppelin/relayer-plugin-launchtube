@@ -62,15 +62,18 @@ mkdir -p plugins/launchtube
 export { handler } from '@openzeppelin/relayer-plugin-launchtube';
 ```
 
-### Provide a configuration file
+### Configure Environment Variables
 
-Copy the bundled example and tweak it to your needs:
+Set the required environment variables for the plugin:
 
 ```bash
-cp node_modules/@openzeppelin/relayer-plugin-launchtube/config.example.json plugins/launchtube/config.json
+# Required environment variables
+export STELLAR_NETWORK="testnet"        # or "mainnet"
+export SOROBAN_RPC_URL="https://soroban-testnet.stellar.org"
+export FUND_RELAYER_ID="launchtube-fund"
+export LAUNCHTUBE_ADMIN_SECRET="your-secret-here"  # Required for management API
+export LOCK_TTL_SECONDS=30
 ```
-
-Edit `plugins/launchtube/config.json` (see Configuration section).
 
 Your Relayer should now contain:
 
@@ -79,8 +82,26 @@ relayer/
 └─ plugins/
    ├─ package.json              # lists the dependency
    └─ launchtube/
-      ├─ index.ts
-      └─ config.json
+      └─ index.ts
+```
+
+### Initialize Sequence Accounts
+
+Before using LaunchTube, you must configure sequence accounts using the management API:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/plugins/launchtube/call \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "params": {
+      "management": {
+        "action": "setSequenceAccounts",
+        "adminSecret": "your-secret-here",
+        "relayerIds": ["launchtube-seq-001", "launchtube-seq-002"]
+      }
+    }
+  }'
 ```
 
 LaunchTube is now ready to serve Soroban transactions 🚀
@@ -115,25 +136,85 @@ Launchtube accepts Soroban operations and handles all the complexity of getting 
 
 ## Configuration
 
-Create `config.json` in the plugin directory:
+LaunchTube is configured through environment variables:
+
+**Required Environment Variables:**
+
+- `STELLAR_NETWORK`: Either "testnet" or "mainnet"
+- `SOROBAN_RPC_URL`: Stellar Soroban RPC endpoint
+- `FUND_RELAYER_ID`: Relayer ID for the account that pays fees
+
+**Optional Environment Variables:**
+
+- `LAUNCHTUBE_ADMIN_SECRET`: Secret for accessing the management API (required to manage sequence accounts)
+- `LOCK_TTL_SECONDS`: TTL for sequence account locks (default: 30, range: 10-30)
+
+**Note:** Sequence accounts are no longer configured via config file. They must be managed dynamically through the Management API (see below).
+
+## Management API
+
+LaunchTube provides a management API to dynamically configure sequence accounts. This API requires authentication via the `LAUNCHTUBE_ADMIN_SECRET` environment variable.
+
+### List Sequence Accounts
+
+Get the current list of configured sequence accounts:
+
+```Shell
+curl -X POST http://localhost:8080/api/v1/plugins/launchtube/call \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "params": {
+      "management": {
+        "action": "listSequenceAccounts",
+        "adminSecret": "your-secret-here"
+      }
+    }
+  }'
+```
+
+**Response:**
 
 ```JSON
 {
-  "fundRelayerId": "launchtube-fund",
-  "sequenceRelayerIds": ["launchtube-seq-001", "launchtube-seq-002"],
-  "maxFee": 1000000,
-  "network": "testnet",
-  "rpcUrl": "https://soroban-testnet.stellar.org"
+  "relayerIds": ["launchtube-seq-001", "launchtube-seq-002"]
 }
 ```
 
-**Configuration Options:**
+### Set Sequence Accounts
 
-- `fundRelayerId`: Relayer ID for the account that pays fees
-- `sequenceRelayerIds`: Array of relayer IDs for sequence accounts
-- `maxFee`: Maximum fee in stroops (1 XLM = 10,000,000 stroops)
-- `network`: Either "testnet" or "mainnet"
-- `rpcUrl`: Stellar Soroban RPC endpoint
+Configure the sequence accounts that LaunchTube will use. This replaces the entire list:
+
+```Shell
+curl -X POST http://localhost:8080/api/v1/plugins/launchtube/call \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "params": {
+      "management": {
+        "action": "setSequenceAccounts",
+        "adminSecret": "your-secret-here",
+        "relayerIds": ["launchtube-seq-001", "launchtube-seq-002", "launchtube-seq-003"]
+      }
+    }
+  }'
+```
+
+**Response:**
+
+```JSON
+{
+  "ok": true,
+  "appliedRelayerIds": ["launchtube-seq-001", "launchtube-seq-002", "launchtube-seq-003"]
+}
+```
+
+**Important Notes:**
+
+- You must configure at least one sequence account before LaunchTube can process transactions
+- The management API will prevent removing accounts that are currently locked (in use). On failure it throws a plugin error with status 409, code `LOCKED_CONFLICT`, and `details.locked` listing blocked IDs.
+- All relayer IDs must exist in your OpenZeppelin Relayer configuration
+- The `adminSecret` must match the `LAUNCHTUBE_ADMIN_SECRET` environment variable
 
 ## API Usage
 
@@ -181,11 +262,33 @@ curl -X POST http://localhost:8080/api/v1/plugins/launchtube/call \
 
 ### Response
 
-```JSON
+Responses follow the Relayer envelope `{ success, data, error }`.
+
+Success example:
+
+```json
 {
-  "transactionId": "tx_123456",
-  "status": "submitted",
-  "hash": "1234567890abcdef..."
+  "success": true,
+  "data": {
+    "result": {
+      "transactionId": "tx_123456",
+      "hash": "1234567890abcdef..."
+    }
+  },
+  "error": null
+}
+```
+
+Plugin error example:
+
+```json
+{
+  "success": false,
+  "data": {
+    "code": "INVALID_PARAMS",
+    "details": { "sim": false, "xdrProvided": false }
+  },
+  "error": "Cannot pass `sim = false` without `xdr`"
 }
 ```
 

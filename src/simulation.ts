@@ -1,13 +1,14 @@
 /**
  * simulation.ts
- * 
+ *
  * Handles Soroban transaction simulation and building.
  * Manages transaction validation and resource fee calculations.
  */
 
 import { Transaction, TransactionBuilder, Operation, Account, SorobanRpc, xdr } from '@stellar/stellar-sdk';
-import { ExtractedData, SequenceAccount, RpcClient, SimulationError, ValidationError } from './types';
-import { Relayer, SignTransactionResponseStellar } from '@openzeppelin/relayer-sdk';
+import { pluginError, Relayer, SignTransactionResponseStellar } from '@openzeppelin/relayer-sdk';
+import { ExtractedData, SequenceAccount, RpcClient } from './types';
+import { HTTP_STATUS, SIMULATION } from './constants';
 
 export async function simulateAndBuild(
   extracted: ExtractedData,
@@ -20,12 +21,12 @@ export async function simulateAndBuild(
 
   // Build transaction for simulation using sequence account
   const transaction = new TransactionBuilder(new Account(sequence.address, sequence.sequence), {
-    fee: '100', // Will be updated after simulation
+    fee: SIMULATION.DEFAULT_FEE, // Will be updated after simulation
     networkPassphrase: networkPassphrase,
     ledgerbounds: extracted.inputTx?.ledgerBounds,
     timebounds: extracted.inputTx?.timeBounds || {
-      minTime: 0,
-      maxTime: now + 30,
+      minTime: SIMULATION.MIN_TIME_BOUND,
+      maxTime: now + SIMULATION.MAX_TIME_BOUND_OFFSET_SECONDS,
     },
     memo: extracted.inputTx?.memo,
     minAccountSequence: extracted.inputTx?.minAccountSequence,
@@ -43,15 +44,21 @@ export async function simulateAndBuild(
     .build();
 
   // Simulate the transaction
-  console.log('Simulating transaction...');
   const simResult = await rpc.simulateTransaction(transaction);
 
   if (SorobanRpc.Api.isSimulationError(simResult)) {
-    throw new SimulationError(`Simulation failed: ${simResult.error}`);
+    throw pluginError('Simulation failed', {
+      code: 'SIMULATION_FAILED',
+      status: HTTP_STATUS.BAD_REQUEST,
+      details: { error: (simResult as any).error },
+    });
   }
 
   if (SorobanRpc.Api.isSimulationRestore(simResult)) {
-    throw new SimulationError('Restore flow not yet supported');
+    throw pluginError('Restore flow not yet supported', {
+      code: 'RESTORE_UNSUPPORTED',
+      status: HTTP_STATUS.BAD_REQUEST,
+    });
   }
 
   const successResult = simResult as SorobanRpc.Api.SimulateTransactionSuccessResponse;
@@ -62,7 +69,10 @@ export async function simulateAndBuild(
   // Get transaction data and build final transaction
   const transactionData = successResult.transactionData;
   if (!transactionData) {
-    throw new SimulationError('No transaction data from simulation');
+    throw pluginError('No transaction data from simulation', {
+      code: 'NO_SIMULATION_DATA',
+      status: HTTP_STATUS.BAD_REQUEST,
+    });
   }
 
   const sorobanData = transactionData.build();
@@ -86,7 +96,10 @@ export function validateExistingTransaction(tx: Transaction): Transaction {
   // Validate transaction constraints for non-simulated path
   const envelope = tx.toEnvelope();
   if (envelope.switch() !== xdr.EnvelopeType.envelopeTypeTx()) {
-    throw new ValidationError('Invalid transaction envelope type');
+    throw pluginError('Invalid transaction envelope type', {
+      code: 'INVALID_OPERATION',
+      status: HTTP_STATUS.BAD_REQUEST,
+    });
   }
 
   const sorobanData = envelope.v1().tx().ext().sorobanData();
@@ -94,14 +107,22 @@ export function validateExistingTransaction(tx: Transaction): Transaction {
     const resourceFee = sorobanData.resourceFee().toBigInt();
 
     if (BigInt(tx.fee) > resourceFee + 201n) {
-      throw new ValidationError('Transaction fee must be equal to the resource fee');
+      throw pluginError('Transaction fee must be equal to the resource fee', {
+        code: 'FEE_MISMATCH',
+        status: HTTP_STATUS.BAD_REQUEST,
+        details: { fee: tx.fee, resourceFee: resourceFee.toString() },
+      });
     }
   }
 
   const now = Math.floor(Date.now() / 1000);
-  if (tx.timeBounds?.maxTime && Number(tx.timeBounds.maxTime) - now > 30) {
-    throw new ValidationError(
-      'Transaction `timeBounds.maxTime` too far into the future. Must be no greater than 30 seconds',
+  if (tx.timeBounds?.maxTime && Number(tx.timeBounds.maxTime) - now > SIMULATION.MAX_FUTURE_TIME_BOUND_SECONDS) {
+    throw pluginError(
+      `Transaction \`timeBounds.maxTime\` too far into the future. Must be no greater than ${SIMULATION.MAX_FUTURE_TIME_BOUND_SECONDS} seconds`,
+      {
+        code: 'TIMEBOUNDS_TOO_FAR',
+        status: HTTP_STATUS.BAD_REQUEST,
+      },
     );
   }
 
@@ -114,7 +135,10 @@ function validateSimulatedAuth(
 ): void {
   if (providedAuth && providedAuth.length > 0) {
     if (!simulatedAuth || simulatedAuth.length === 0) {
-      throw new ValidationError('Auth invalid - simulation returned no auth');
+      throw pluginError('Auth invalid - simulation returned no auth', {
+        code: 'AUTH_INVALID',
+        status: HTTP_STATUS.BAD_REQUEST,
+      });
     }
 
     // Check arrays have same auth entries (order doesn't matter)
@@ -127,7 +151,10 @@ function validateSimulatedAuth(
       simulatedAuthXdr.every((a) => providedAuthXdr.includes(a));
 
     if (!authMatches) {
-      throw new ValidationError('Auth invalid - simulation returned different auth');
+      throw pluginError('Auth invalid - simulation returned different auth', {
+        code: 'AUTH_INVALID',
+        status: HTTP_STATUS.BAD_REQUEST,
+      });
     }
   }
 }
