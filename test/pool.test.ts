@@ -64,7 +64,7 @@ describe('SequencePool', () => {
 
     const l1 = await pool.acquire();
     const l2 = await pool.acquire();
-    expect([l1.relayerId, l2.relayerId].sort()).toEqual(['A', 'b']);
+    expect([l1.relayerId, l2.relayerId].sort()).toEqual(['a', 'b']);
     await expect(pool.acquire()).rejects.toThrow('Too many transactions queued');
   });
 
