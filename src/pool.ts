@@ -117,5 +117,5 @@ function randomToken(): string {
 }
 
 function normalizeId(id: string): string {
-  return String(id).trim();
+  return String(id).trim().toLowerCase();
 }
