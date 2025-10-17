@@ -77,6 +77,7 @@ export async function simulateAndBuild(
 
   const sorobanData = transactionData.build();
   const resourceFee = sorobanData.resourceFee().toBigInt();
+  console.info(`[Launchtube] Simulation successful (resource fee: ${resourceFee})`);
 
   // Clone transaction with simulation results
   const finalTransaction = TransactionBuilder.cloneFrom(transaction, {

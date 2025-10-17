@@ -37,9 +37,11 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
   try {
     // 1. Validate and parse input into structured request
     const request = validateAndParseRequest(params);
+    console.info(`[Launchtube] Processing ${request.type} request (sim=${request.sim})`);
 
     // 2. Get sequence account from pool
     poolLock = await pool.acquire();
+    console.info(`[Launchtube] Acquired sequence account: ${poolLock.relayerId}`);
     const sequenceRelayer = api.useRelayer(poolLock.relayerId);
     const sequenceInfo = await sequenceRelayer.getRelayer();
 
@@ -72,6 +74,7 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
 
     // 4. Check auth entries and determine if we should simulate
     const authCheck = checkAuthAndSimDecision(request, extracted, sequenceAccount);
+    console.info(`[Launchtube] Simulation: ${authCheck.shouldSimulate ? 'enabled' : 'disabled'}`);
 
     // 5. Get the final transaction
     //    - If simulating: build new tx with sequence account and simulate
@@ -79,8 +82,6 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
     const finalTransaction = authCheck.shouldSimulate
       ? await simulateAndBuild(extracted, sequenceAccount, sequenceRelayer, rpc, networkPassphrase)
       : validateExistingTransaction(extracted.inputTx!); // We know inputTx exists if not simulating
-
-    console.log('Final transaction:');
 
     // 6. Calculate fee and submit with fee bump
     const fundRelayer = api.useRelayer(config.fundRelayerId);
@@ -92,50 +93,52 @@ async function launchtube(context: PluginContext): Promise<LaunchtubeResponse> {
       fee_bump: true,
       max_fee: parseInt(fee.toString()),
     });
-    // Release lock immediately after submission to avoid holding while waiting
-    if (poolLock) {
-      await pool.release(poolLock);
-      poolLock = undefined;
-    }
+    console.info(`[Launchtube] Transaction submitted: ${submission.id} (fee: ${fee})`);
 
-    try {
-      const final = (await api.transactionWait(submission, {
-        interval: POLLING.INTERVAL_MS,
-        timeout: POLLING.TIMEOUT_MS,
-      })) as StellarTransactionResponse;
-
-      // Check if transaction actually succeeded
-      if (final.status === 'failed') {
-        throw pluginError(final.status_reason || 'Transaction failed', {
-          code: 'ONCHAIN_FAILED',
-          status: HTTP_STATUS.BAD_REQUEST,
+    const final = await (async () => {
+      try {
+        return (await api.transactionWait(submission, {
+          interval: POLLING.INTERVAL_MS,
+          timeout: POLLING.TIMEOUT_MS,
+        })) as StellarTransactionResponse;
+      } catch (error: any) {
+        console.error('Transaction wait error:', error);
+        throw pluginError('Transaction wait timeout. It may still submit.', {
+          code: 'WAIT_TIMEOUT',
+          status: HTTP_STATUS.GATEWAY_TIMEOUT,
           details: {
-            status: String(final.status),
-            reason: final.status_reason ?? null,
-            id: final.id,
-            hash: final.hash ?? null,
+            id: submission.id,
+            hash: submission.hash ?? null,
+            error: error?.message || String(error),
           },
         });
       }
+    })();
 
-      return {
-        transactionId: final.id,
-        status: final.status,
-        hash: final.hash ?? null,
-      };
-    } catch (error: any) {
-      throw pluginError('Transaction wait timeout. It may still submit.', {
-        code: 'WAIT_TIMEOUT',
-        status: HTTP_STATUS.GATEWAY_TIMEOUT,
+    // Check if transaction actually succeeded
+    if (final.status === 'failed') {
+      throw pluginError(final.status_reason || 'Transaction failed on-chain', {
+        code: 'ONCHAIN_FAILED',
+        status: HTTP_STATUS.BAD_REQUEST,
         details: {
-          id: submission.id,
-          hash: submission.hash ?? null,
+          status: String(final.status),
+          reason: final.status_reason ?? null,
+          id: final.id,
+          hash: final.hash ?? null,
         },
       });
     }
+
+    console.info(`[Launchtube] Transaction completed: ${final.status} (hash: ${final.hash || 'none'})`);
+    return {
+      transactionId: final.id,
+      status: final.status,
+      hash: final.hash ?? null,
+    };
   } finally {
     if (poolLock) {
       await pool.release(poolLock);
+      console.info(`[Launchtube] Released sequence account in cleanup: ${poolLock.relayerId}`);
     }
   }
 }

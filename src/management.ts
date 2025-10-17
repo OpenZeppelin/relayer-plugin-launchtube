@@ -54,6 +54,7 @@ export async function handleManagement(context: PluginContext): Promise<any> {
   }
 
   const action = String(m.action || '');
+  console.info(`[Launchtube] Management action: ${action}`);
   // Load config (requires env like STELLAR_NETWORK) after auth
   const cfg = loadConfig();
   switch (action) {
@@ -114,6 +115,7 @@ async function setSequenceAccounts(kv: PluginKVStore, network: 'testnet' | 'main
   // Write new list
   try {
     await kv.set(listKey, { relayerIds });
+    console.info(`[Launchtube] Sequence accounts updated: ${relayerIds.length} accounts`);
     return { ok: true, appliedRelayerIds: relayerIds };
   } catch (e: any) {
     throw pluginError('KV error while saving sequence accounts', {
