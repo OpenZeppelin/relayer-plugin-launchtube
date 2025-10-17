@@ -23,6 +23,15 @@ export function checkAuthAndSimDecision(
     switch (authEntry.credentials().switch()) {
       case xdr.SorobanCredentialsType.sorobanCredentialsSourceAccount(): {
         // Source account auth requires the transaction source to sign
+        // For func+auth requests, we have no transaction - this is invalid
+        if (request.type === 'func-auth') {
+          throw pluginError('Invalid request', {
+            code: 'INVALID_REQUEST',
+            status: HTTP_STATUS.BAD_REQUEST,
+            details: { reason: 'func+auth cannot use sorobanCredentialsSourceAccount' },
+          });
+        }
+
         // If we're simulating, we'll rebuild the tx with our sequence account
         // So we must disable simulation to preserve the original signatures
         if (request.sim) {
