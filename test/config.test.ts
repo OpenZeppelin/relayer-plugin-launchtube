@@ -1,4 +1,4 @@
-import { getLockTtlSeconds, getNetworkPassphrase, loadConfig } from '../src/config';
+import { getLockTtlSeconds, getNetworkPassphrase, loadConfig } from '../src/plugin/config';
 import { Networks } from '@stellar/stellar-sdk';
 
 describe('config', () => {
@@ -91,4 +91,3 @@ describe('config', () => {
     });
   });
 });
-

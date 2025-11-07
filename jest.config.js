@@ -6,4 +6,3 @@ module.exports = {
   clearMocks: true,
   verbose: false,
 };
-

@@ -1,6 +1,6 @@
 import { Account, Contract, Keypair, Networks, Operation, TransactionBuilder, xdr } from '@stellar/stellar-sdk';
-import { simulateAndBuild, validateExistingTransaction } from '../src/simulation';
-import type { ExtractedData, RpcClient } from '../src/types';
+import { simulateAndBuild, validateExistingTransaction } from '../src/plugin/simulation';
+import type { ExtractedData, RpcClient } from '../src/plugin/types';
 
 function buildInvokeHostFunctionOp() {
   const kp = Keypair.random();

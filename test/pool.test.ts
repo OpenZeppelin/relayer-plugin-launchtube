@@ -1,5 +1,5 @@
 import { FakeKV } from './helpers/fakeKv';
-import { SequencePool } from '../src/pool';
+import { SequencePool } from '../src/plugin/pool';
 
 describe('SequencePool', () => {
   const OLD_ENV = process.env;

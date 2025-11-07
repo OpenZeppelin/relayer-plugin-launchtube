@@ -1,5 +1,5 @@
 import { Account, Contract, Keypair, Networks, Operation, TransactionBuilder, xdr } from '@stellar/stellar-sdk';
-import { extractFunctionAndAuth } from '../src/extraction';
+import { extractFunctionAndAuth } from '../src/plugin/extraction';
 
 const CONTRACT_ID = 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC';
 
