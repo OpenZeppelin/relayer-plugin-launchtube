@@ -1,4 +1,4 @@
-import { calculateFee } from '../src/fee';
+import { calculateFee } from '../src/plugin/fee';
 import { xdr } from '@stellar/stellar-sdk';
 
 describe('fee', () => {
@@ -12,7 +12,9 @@ describe('fee', () => {
     const tx: any = {
       toEnvelope: () => ({
         switch: () => xdr.EnvelopeType.envelopeTypeTx(),
-        v1: () => ({ tx: () => ({ ext: () => ({ sorobanData: () => ({ resourceFee: () => ({ toBigInt: () => 1000n }) }) }) }) }),
+        v1: () => ({
+          tx: () => ({ ext: () => ({ sorobanData: () => ({ resourceFee: () => ({ toBigInt: () => 1000n }) }) }) }),
+        }),
       }),
     };
     const fee = calculateFee(tx as any);
@@ -33,4 +35,3 @@ describe('fee', () => {
     expect(fee).toBe(BigInt(base + 60000));
   });
 });
-

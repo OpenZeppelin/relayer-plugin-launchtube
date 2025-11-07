@@ -1,5 +1,5 @@
 import { FakeKV } from './helpers/fakeKv';
-import { handleManagement, isManagementRequest } from '../src/management';
+import { handleManagement, isManagementRequest } from '../src/plugin/management';
 
 const baseContext = (kv: any, params: any) => ({ kv, params }) as any;
 

@@ -2,6 +2,28 @@
 
 A plugin for OpenZeppelin Relayer that simplifies submitting Stellar Soroban transactions by handling fees, sequence numbers, and retries.
 
+This package provides:
+
+- **Plugin**: A handler for OpenZeppelin Relayer that processes Soroban transactions
+- **Client**: A TypeScript/JavaScript client library for easy integration in applications
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Installation & Setup](#installation--setup)
+- [Client Usage](#client-usage)
+  - [Installing the Client](#installing-the-client)
+  - [Client Modes](#client-modes)
+  - [Sending Transactions](#sending-transactions)
+  - [Managing Sequence Accounts](#managing-sequence-accounts)
+  - [Error Handling](#error-handling)
+  - [TypeScript Types](#typescript-types)
+- [Direct HTTP API Usage](#direct-http-api-usage)
+- [Configuration](#configuration)
+- [Management API](#management-api)
+- [Development](#development)
+- [How It Works](#how-it-works)
+
 ## Prerequisites
 
 - Node.js >= 18
@@ -216,7 +238,9 @@ curl -X POST http://localhost:8080/api/v1/plugins/launchtube/call \
 - All relayer IDs must exist in your OpenZeppelin Relayer configuration
 - The `adminSecret` must match the `LAUNCHTUBE_ADMIN_SECRET` environment variable
 
-## API Usage
+## Direct HTTP API Usage
+
+These examples show how to interact with the plugin using direct HTTP requests (e.g., with curl). For a better developer experience in TypeScript/JavaScript applications, see the [Client Usage](#client-usage) section.
 
 ### Submit with Transaction XDR
 
@@ -300,6 +324,182 @@ Plugin error example:
 4. **Simulation** (if enabled): Simulates transaction and rebuilds with proper resources
 5. **Fee Bumping**: Fund account wraps transaction with fee bump
 6. **Submission**: Sends to Stellar network
+
+## Client Usage
+
+The Launchtube package includes a TypeScript/JavaScript client that provides a clean, type-safe interface for interacting with the plugin. The client automatically handles request formatting, response parsing, and error handling.
+
+### Installing the Client
+
+```bash
+npm install @openzeppelin/relayer-plugin-launchtube
+# or
+pnpm add @openzeppelin/relayer-plugin-launchtube
+```
+
+### Client Modes
+
+The client supports two modes and automatically detects which to use based on configuration:
+
+#### Relayer Mode
+
+Use when the Launchtube plugin is deployed in an OpenZeppelin Relayer:
+
+```typescript
+import { LaunchtubeClient } from '@openzeppelin/relayer-plugin-launchtube';
+
+const client = new LaunchtubeClient({
+  pluginId: 'launchtube-plugin-id',
+  apiKey: 'relayer-api-key',
+  baseUrl: 'https://api.defender.openzeppelin.com',
+  adminSecret: 'your-admin-secret', // optional, required for management operations
+});
+```
+
+#### Direct HTTP Mode
+
+Use when the Launchtube plugin is exposed via direct HTTP:
+
+```typescript
+import { LaunchtubeClient } from '@openzeppelin/relayer-plugin-launchtube';
+
+const client = new LaunchtubeClient({
+  baseUrl: 'https://launchtube.example.com',
+  apiKey: 'your-api-key',
+  adminSecret: 'your-admin-secret', // optional, required for management operations
+  timeout: 30000, // optional, default: 30000ms
+});
+```
+
+### Sending Transactions
+
+#### With Complete Transaction XDR
+
+```typescript
+try {
+  const result = await client.sendTransaction({
+    xdr: 'AAAAAgAAAAA...',
+    sim: false, // set to true to simulate before submission
+  });
+
+  console.log('Transaction submitted:', result.transactionId);
+  console.log('Hash:', result.hash);
+  console.log('Status:', result.status);
+} catch (error) {
+  if (error instanceof PluginExecutionError) {
+    console.error('Plugin rejected:', error.message);
+    console.error('Details:', error.errorDetails);
+  } else if (error instanceof PluginTransportError) {
+    console.error('Network error:', error.message);
+  }
+}
+```
+
+#### With Function and Auth
+
+```typescript
+import { LaunchtubeClient, PluginExecutionError, PluginTransportError } from '@openzeppelin/relayer-plugin-launchtube';
+
+const result = await client.sendTransaction({
+  func: 'AAAABAAAAAEAAAAGc3ltYm9s...',
+  auth: ['AAAACAAAAAEAAAA...', 'AAAACAAAAAEAAAA...'],
+  sim: true, // simulation required when using func+auth
+});
+```
+
+### Managing Sequence Accounts
+
+The client provides methods for dynamically managing sequence accounts. These operations require `adminSecret` to be configured.
+
+#### List Sequence Accounts
+
+```typescript
+try {
+  const accounts = await client.listSequenceAccounts();
+  console.log('Configured accounts:', accounts.relayerIds);
+} catch (error) {
+  if (error instanceof PluginExecutionError) {
+    console.error('Unauthorized:', error.message);
+  }
+}
+```
+
+#### Set Sequence Accounts
+
+```typescript
+try {
+  const result = await client.setSequenceAccounts(['launchtube-seq-001', 'launchtube-seq-002', 'launchtube-seq-003']);
+
+  console.log('Success:', result.ok);
+  console.log('Applied:', result.appliedRelayerIds);
+} catch (error) {
+  if (error instanceof PluginExecutionError) {
+    // Check for locked accounts conflict
+    if (error.errorDetails?.code === 'LOCKED_CONFLICT') {
+      console.error('Cannot remove locked accounts:', error.errorDetails.details.locked);
+    }
+  }
+}
+```
+
+### Error Handling
+
+The client throws typed errors for different failure scenarios:
+
+```typescript
+import {
+  LaunchtubeClient,
+  PluginClientError,
+  PluginTransportError,
+  PluginExecutionError,
+  PluginUnexpectedError,
+} from '@openzeppelin/relayer-plugin-launchtube';
+
+try {
+  const result = await client.sendTransaction({ xdr: '...', sim: false });
+} catch (error) {
+  if (error instanceof PluginTransportError) {
+    // Network/HTTP failures (connection refused, timeouts, 5xx errors)
+    console.error('Transport error:', error.message);
+    console.error('Status code:', error.statusCode);
+  } else if (error instanceof PluginExecutionError) {
+    // Plugin-side validation or business logic errors
+    console.error('Execution error:', error.message);
+    console.error('Error details:', error.errorDetails);
+  } else if (error instanceof PluginUnexpectedError) {
+    // Malformed responses or unexpected client-side errors
+    console.error('Unexpected error:', error.message);
+  } else if (error instanceof Error) {
+    // Configuration errors (e.g., missing adminSecret)
+    console.error('Configuration error:', error.message);
+  }
+}
+```
+
+### TypeScript Types
+
+The client is fully typed for TypeScript projects:
+
+```typescript
+import type {
+  LaunchtubeClientConfig,
+  DirectHttpConfig,
+  RelayerConfig,
+  LaunchtubeTransactionRequest,
+  LaunchtubeTransactionResponse,
+  ListSequenceAccountsResponse,
+  SetSequenceAccountsResponse,
+} from '@openzeppelin/relayer-plugin-launchtube';
+
+// Type-safe configuration
+const config: RelayerConfig = {
+  pluginId: 'my-plugin-id',
+  apiKey: 'my-api-key',
+  baseUrl: 'https://api.defender.openzeppelin.com',
+};
+
+const client = new LaunchtubeClient(config);
+```
 
 ## License
 

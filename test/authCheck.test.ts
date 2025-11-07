@@ -1,6 +1,6 @@
 import { Keypair, xdr } from '@stellar/stellar-sdk';
-import { checkAuthAndSimDecision } from '../src/authCheck';
-import { ExtractedData, LaunchtubeRequest, SequenceAccount } from '../src/types';
+import { checkAuthAndSimDecision } from '../src/plugin/authCheck';
+import { ExtractedData, LaunchtubeRequest, SequenceAccount } from '../src/plugin/types';
 
 function makeSourceAccountAuthEntry(): any {
   return {
@@ -64,7 +64,9 @@ describe('authCheck', () => {
     };
     const request: LaunchtubeRequest = { type: 'xdr', xdr: 'X', sim: true };
 
-    expect(() => checkAuthAndSimDecision(request, extracted, sequence)).toThrow('`sorobanCredentialsSourceAccount` is invalid');
+    expect(() => checkAuthAndSimDecision(request, extracted, sequence)).toThrow(
+      '`sorobanCredentialsSourceAccount` is invalid',
+    );
   });
 
   test('violation when op source equals sequence account with source-account credentials', () => {
@@ -77,7 +79,9 @@ describe('authCheck', () => {
     };
     const request: LaunchtubeRequest = { type: 'xdr', xdr: 'X', sim: true };
 
-    expect(() => checkAuthAndSimDecision(request, extracted, sequence)).toThrow('`sorobanCredentialsSourceAccount` is invalid');
+    expect(() => checkAuthAndSimDecision(request, extracted, sequence)).toThrow(
+      '`sorobanCredentialsSourceAccount` is invalid',
+    );
   });
 
   test('violation when address credentials matches sequence account', () => {
@@ -87,6 +91,8 @@ describe('authCheck', () => {
     const extracted: ExtractedData = { func: {} as any, auth: [addrAuth] };
     const request: LaunchtubeRequest = { type: 'xdr', xdr: 'X', sim: true };
 
-    expect(() => checkAuthAndSimDecision(request, extracted, sequence)).toThrow('`sorobanCredentialsAddress` is invalid');
+    expect(() => checkAuthAndSimDecision(request, extracted, sequence)).toThrow(
+      '`sorobanCredentialsAddress` is invalid',
+    );
   });
 });

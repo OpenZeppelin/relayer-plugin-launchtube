@@ -1,4 +1,4 @@
-import { validateAndParseRequest } from '../src/validation';
+import { validateAndParseRequest } from '../src/plugin/validation';
 
 describe('validation', () => {
   test('xdr path: sim defaults to true', () => {
