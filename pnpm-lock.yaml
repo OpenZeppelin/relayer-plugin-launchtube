@@ -1014,7 +1014,7 @@ packages:
     engines: {iojs: '>= 1.0.0', node: '>= 0.12.0'}
 
   code-style@https://codeload.github.com/OpenZeppelin/configs/tar.gz/a6cd128e6f5225b15d76704708c5def97caa8176:
-    resolution: {tarball: https://codeload.github.com/OpenZeppelin/configs/tar.gz/a6cd128e6f5225b15d76704708c5def97caa8176}
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/OpenZeppelin/configs/tar.gz/a6cd128e6f5225b15d76704708c5def97caa8176}
     version: 0.1.0
 
   collect-v8-coverage@1.0.2:
